@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -33,7 +34,7 @@ public class UsuarioController {
     }
 
     @PostMapping
-    public ResponseEntity<UsuarioDTO> crearUsuario(@RequestBody UsuarioRequestDTO request) {
+    public ResponseEntity<UsuarioDTO> crearUsuario(@Valid @RequestBody UsuarioRequestDTO request) {
         Usuario usuario = new Usuario();
         usuario.setNombre(request.nombre());
         usuario.setEmail(request.email());
@@ -47,7 +48,7 @@ public class UsuarioController {
 
     @PutMapping("/{id}")
     public ResponseEntity<UsuarioDTO> actualizarUsuario(@PathVariable Long id,
-                                                        @RequestBody UsuarioRequestDTO request) {
+@Valid @RequestBody UsuarioRequestDTO request) {
         Usuario usuario = usuarioRepository.findById(id).orElse(null);
         if (usuario == null) {
             return ResponseEntity.notFound().build();
@@ -67,7 +68,7 @@ public class UsuarioController {
 
     @PatchMapping("/{id}")
     public ResponseEntity<UsuarioDTO> actualizarParcialmente(@PathVariable Long id,
-                                                            @RequestBody UsuarioUpdateDTO updates) {
+                                                            @Valid @RequestBody UsuarioUpdateDTO updates) {
         Usuario usuario = usuarioRepository.findById(id).orElse(null);
         if (usuario == null) {
             return ResponseEntity.notFound().build();
