@@ -2,6 +2,7 @@ package com.resq.backend.controller;
 
 import com.resq.backend.dto.UsuarioDTO;
 import com.resq.backend.dto.UsuarioRequestDTO;
+import com.resq.backend.dto.UsuarioUpdateDTO;
 import com.resq.backend.entity.Usuario;
 import com.resq.backend.repository.UsuarioRepository;
 import org.springframework.http.HttpStatus;
@@ -59,6 +60,34 @@ public class UsuarioController {
         }
         usuario.setTelefono(request.telefono());
         usuario.setRol(request.rol());
+
+        Usuario guardado = usuarioRepository.save(usuario);
+        return ResponseEntity.ok(toDTO(guardado));
+    }
+
+    @PatchMapping("/{id}")
+    public ResponseEntity<UsuarioDTO> actualizarParcialmente(@PathVariable Long id,
+                                                            @RequestBody UsuarioUpdateDTO updates) {
+        Usuario usuario = usuarioRepository.findById(id).orElse(null);
+        if (usuario == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        if (updates.nombre() != null) {
+            usuario.setNombre(updates.nombre());
+        }
+        if (updates.email() != null) {
+            usuario.setEmail(updates.email());
+        }
+        if (updates.password() != null && !updates.password().isBlank()) {
+            usuario.setPasswordHash(passwordEncoder.encode(updates.password()));
+        }
+        if (updates.telefono() != null) {
+            usuario.setTelefono(updates.telefono());
+        }
+        if (updates.rol() != null) {
+            usuario.setRol(updates.rol());
+        }
 
         Usuario guardado = usuarioRepository.save(usuario);
         return ResponseEntity.ok(toDTO(guardado));
