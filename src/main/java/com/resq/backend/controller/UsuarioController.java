@@ -44,6 +44,26 @@ public class UsuarioController {
         return ResponseEntity.status(HttpStatus.CREATED).body(toDTO(guardado));
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<UsuarioDTO> actualizarUsuario(@PathVariable Long id,
+                                                        @RequestBody UsuarioRequestDTO request) {
+        Usuario usuario = usuarioRepository.findById(id).orElse(null);
+        if (usuario == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        usuario.setNombre(request.nombre());
+        usuario.setEmail(request.email());
+        if (request.password() != null && !request.password().isBlank()) {
+            usuario.setPasswordHash(passwordEncoder.encode(request.password()));
+        }
+        usuario.setTelefono(request.telefono());
+        usuario.setRol(request.rol());
+
+        Usuario guardado = usuarioRepository.save(usuario);
+        return ResponseEntity.ok(toDTO(guardado));
+    }
+
     private UsuarioDTO toDTO(Usuario usuario) {
         return new UsuarioDTO(
                 usuario.getIdUsuario(),
