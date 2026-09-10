@@ -35,7 +35,7 @@ public class GlobalExceptionHandler {
         String causa = ex.getMostSpecificCause().getMessage();
         String mensaje = causa != null && causa.contains("Duplicate entry")
                 ? "El email ya está registrado"
-                : "No se puede eliminar porque tiene registros asociados";
+                : "Operación rechazada por registros asociados en la base de datos";
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ApiError(HttpStatus.CONFLICT.value(), mensaje, null));
     }
