@@ -1,6 +1,6 @@
-package net.javaguides.springboot.repository;
+package com.resq.backend.repository;
 
-import net.javaguides.springboot.model.Reporte;
+import com.resq.backend.entity.Reporte;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
