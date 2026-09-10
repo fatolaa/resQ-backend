@@ -1,4 +1,4 @@
-package net.javaguides.springboot.model;
+package com.resq.backend.entity;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -12,19 +12,19 @@ public class Usuario {
     @Column(name = "id_usuario")
     private Long idUsuario;
 
-    @Column(name = "nombre")
+    @Column(name = "nombre", nullable = false, length = 100)
     private String nombre;
 
-    @Column(name = "email")
+    @Column(name = "email", nullable = false, unique = true, length = 150)
     private String email;
 
-    @Column(name = "password_hash")
+    @Column(name = "password_hash", nullable = false, length = 255)
     private String passwordHash;
 
-    @Column(name = "telefono")
+    @Column(name = "telefono", length = 20)
     private String telefono;
 
-    @Column(name = "rol")
+    @Column(name = "rol", nullable = false, length = 50)
     private String rol;
 
     @Column(name = "fecha_registro")
