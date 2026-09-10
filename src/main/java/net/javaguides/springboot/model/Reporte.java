@@ -1,16 +1,11 @@
 package net.javaguides.springboot.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "reportes")
+@Table(name = "reporte")
 public class Reporte {
 
     @Id
@@ -18,28 +13,32 @@ public class Reporte {
     @Column(name = "id_reporte")
     private Long idReporte;
 
-    @Column(name = "tipo_animal", nullable = false, length = 50)
-    private String tipoAnimal;
+    @Column(name = "id_usuario", nullable = false)
+    private Long idUsuario;
 
-    @Column(name = "situacion", nullable = false, length = 100)
-    private String situacion;
+    @Column(name = "tipo_caso", length = 100)
+    private String tipoCaso;
 
-    @Column(name = "descripcion")
+    @Column(name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
-
-    @Column(name = "ubicacion", nullable = false, length = 255)
-    private String ubicacion;
-
-    @Column(name = "foto_url", length = 500)
-    private String fotoUrl;
 
     @Column(name = "estado", length = 50)
     private String estado;
+
+    @Column(name = "foto_url", length = 500)
+    private String fotoUrl;
 
     @Column(name = "fecha_creacion")
     private LocalDateTime fechaCreacion;
 
     public Reporte() {
+    }
+
+    @PrePersist
+    public void prePersist() {
+        if (fechaCreacion == null) {
+            fechaCreacion = LocalDateTime.now();
+        }
     }
 
     public Long getIdReporte() {
@@ -50,20 +49,20 @@ public class Reporte {
         this.idReporte = idReporte;
     }
 
-    public String getTipoAnimal() {
-        return tipoAnimal;
+    public Long getIdUsuario() {
+        return idUsuario;
     }
 
-    public void setTipoAnimal(String tipoAnimal) {
-        this.tipoAnimal = tipoAnimal;
+    public void setIdUsuario(Long idUsuario) {
+        this.idUsuario = idUsuario;
     }
 
-    public String getSituacion() {
-        return situacion;
+    public String getTipoCaso() {
+        return tipoCaso;
     }
 
-    public void setSituacion(String situacion) {
-        this.situacion = situacion;
+    public void setTipoCaso(String tipoCaso) {
+        this.tipoCaso = tipoCaso;
     }
 
     public String getDescripcion() {
@@ -74,12 +73,12 @@ public class Reporte {
         this.descripcion = descripcion;
     }
 
-    public String getUbicacion() {
-        return ubicacion;
+    public String getEstado() {
+        return estado;
     }
 
-    public void setUbicacion(String ubicacion) {
-        this.ubicacion = ubicacion;
+    public void setEstado(String estado) {
+        this.estado = estado;
     }
 
     public String getFotoUrl() {
@@ -88,14 +87,6 @@ public class Reporte {
 
     public void setFotoUrl(String fotoUrl) {
         this.fotoUrl = fotoUrl;
-    }
-
-    public String getEstado() {
-        return estado;
-    }
-
-    public void setEstado(String estado) {
-        this.estado = estado;
     }
 
     public LocalDateTime getFechaCreacion() {

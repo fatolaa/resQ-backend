@@ -55,12 +55,11 @@ public class ReporteController {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Reporte no encontrado con id: " + id));
 
-        reporte.setTipoAnimal(datosReporte.getTipoAnimal());
-        reporte.setSituacion(datosReporte.getSituacion());
+        reporte.setIdUsuario(datosReporte.getIdUsuario());
+        reporte.setTipoCaso(datosReporte.getTipoCaso());
         reporte.setDescripcion(datosReporte.getDescripcion());
-        reporte.setUbicacion(datosReporte.getUbicacion());
-        reporte.setFotoUrl(datosReporte.getFotoUrl());
         reporte.setEstado(datosReporte.getEstado());
+        reporte.setFotoUrl(datosReporte.getFotoUrl());
 
         return ResponseEntity.ok(reporteRepository.save(reporte));
     }
