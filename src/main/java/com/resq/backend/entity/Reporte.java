@@ -27,6 +27,9 @@ public class Reporte {
     @Column(name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
 
+    @NotBlank(message = "estado es obligatorio")
+    @Pattern(regexp = "PENDIENTE|EN_PROCESO|RESUELTO|CANCELADO",
+            message = "estado debe ser PENDIENTE, EN_PROCESO, RESUELTO o CANCELADO")
     @Column(name = "estado", length = 50)
     private String estado;
 
