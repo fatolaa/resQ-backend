@@ -20,6 +20,7 @@ public class Reporte {
     @Column(name = "id_usuario", nullable = false)
     private Long idUsuario;
 
+    @NotBlank(message = "tipoCaso es obligatorio")
     @Column(name = "tipo_caso", length = 100)
     private String tipoCaso;
 
