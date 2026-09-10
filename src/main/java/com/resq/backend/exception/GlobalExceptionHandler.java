@@ -31,8 +31,12 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<ApiError> handleDuplicado(DataIntegrityViolationException ex) {
+    public ResponseEntity<ApiError> handleViolacionIntegridad(DataIntegrityViolationException ex) {
+        String causa = ex.getMostSpecificCause().getMessage();
+        String mensaje = causa != null && causa.contains("Duplicate entry")
+                ? "El email ya está registrado"
+                : "No se puede eliminar porque tiene registros asociados";
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new ApiError(HttpStatus.CONFLICT.value(), "El email ya está registrado", null));
+                .body(new ApiError(HttpStatus.CONFLICT.value(), mensaje, null));
     }
 }

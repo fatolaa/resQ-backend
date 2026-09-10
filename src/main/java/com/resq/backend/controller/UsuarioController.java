@@ -94,6 +94,15 @@ public class UsuarioController {
         return ResponseEntity.ok(toDTO(guardado));
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> eliminarUsuario(@PathVariable Long id) {
+        if (!usuarioRepository.existsById(id)) {
+            return ResponseEntity.notFound().build();
+        }
+        usuarioRepository.deleteById(id);
+        return ResponseEntity.noContent().build();
+    }
+
     private UsuarioDTO toDTO(Usuario usuario) {
         return new UsuarioDTO(
                 usuario.getIdUsuario(),
