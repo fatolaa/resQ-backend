@@ -2,6 +2,7 @@ package com.resq.backend.controller;
 
 import com.resq.backend.entity.Reporte;
 import com.resq.backend.repository.ReporteRepository;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -31,13 +32,13 @@ public class ReporteController {
     }
 
     @PostMapping
-    public ResponseEntity<Reporte> crearReporte(@RequestBody Reporte reporte) {
+    public ResponseEntity<Reporte> crearReporte(@Valid @RequestBody Reporte reporte) {
         Reporte guardado = reporteRepository.save(reporte);
         return ResponseEntity.status(HttpStatus.CREATED).body(guardado);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Reporte> actualizarReporte(@PathVariable Long id, @RequestBody Reporte datosReporte) {
+    public ResponseEntity<Reporte> actualizarReporte(@PathVariable Long id, @Valid @RequestBody Reporte datosReporte) {
         return reporteRepository.findById(id)
                 .map(reporte -> {
                     reporte.setIdUsuario(datosReporte.getIdUsuario());

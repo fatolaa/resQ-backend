@@ -1,6 +1,9 @@
 package com.resq.backend.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 
 import java.time.LocalDateTime;
 
@@ -13,6 +16,7 @@ public class Reporte {
     @Column(name = "id_reporte")
     private Long idReporte;
 
+    @NotNull(message = "idUsuario es obligatorio")
     @Column(name = "id_usuario", nullable = false)
     private Long idUsuario;
 
