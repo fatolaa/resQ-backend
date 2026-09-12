@@ -9,5 +9,4 @@ public class ResqBackendApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(ResqBackendApplication.class, args);
 	}
-
 }
