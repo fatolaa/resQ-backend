@@ -24,6 +24,11 @@ public class ReporteController {
         return ResponseEntity.ok(reporteRepository.findAll());
     }
 
+    @GetMapping("/usuario/{idUsuario}")
+    public ResponseEntity<List<Reporte>> obtenerReportesPorUsuario(@PathVariable Long idUsuario) {
+        return ResponseEntity.ok(reporteRepository.findByIdUsuario(idUsuario));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<Reporte> obtenerReportePorId(@PathVariable Long id) {
         return reporteRepository.findById(id)
