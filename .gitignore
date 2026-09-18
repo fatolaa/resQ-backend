@@ -31,3 +31,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Archivos locales de ResQ
+uploads/
+hs_err_pid*.log
+replay_pid*.log
