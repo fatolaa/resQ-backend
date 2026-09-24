@@ -43,40 +43,55 @@ public class UsuarioController {
     @PostMapping
     public ResponseEntity<UsuarioDTO> crearUsuario(@Valid @RequestBody UsuarioRequestDTO request) {
         Usuario usuario = new Usuario();
+
         usuario.setNombre(request.nombre());
         usuario.setEmail(request.email());
         usuario.setPasswordHash(passwordEncoder.encode(request.password()));
         usuario.setTelefono(request.telefono());
+        usuario.setNacionalidad(request.nacionalidad());
         usuario.setRol(request.rol());
 
         Usuario guardado = usuarioRepository.save(usuario);
-        return ResponseEntity.status(HttpStatus.CREATED).body(toDTO(guardado));
+
+        return ResponseEntity
+                .status(HttpStatus.CREATED)
+                .body(toDTO(guardado));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<UsuarioDTO> actualizarUsuario(@PathVariable Long id,
-@Valid @RequestBody UsuarioRequestDTO request) {
+    public ResponseEntity<UsuarioDTO> actualizarUsuario(
+            @PathVariable Long id,
+            @Valid @RequestBody UsuarioRequestDTO request) {
+
         Usuario usuario = usuarioRepository.findById(id).orElse(null);
+
         if (usuario == null) {
             return ResponseEntity.notFound().build();
         }
 
         usuario.setNombre(request.nombre());
         usuario.setEmail(request.email());
+
         if (request.password() != null && !request.password().isBlank()) {
             usuario.setPasswordHash(passwordEncoder.encode(request.password()));
         }
+
         usuario.setTelefono(request.telefono());
+        usuario.setNacionalidad(request.nacionalidad());
         usuario.setRol(request.rol());
 
         Usuario guardado = usuarioRepository.save(usuario);
+
         return ResponseEntity.ok(toDTO(guardado));
     }
 
     @PatchMapping("/{id}")
-    public ResponseEntity<UsuarioDTO> actualizarParcialmente(@PathVariable Long id,
-                                                            @Valid @RequestBody UsuarioUpdateDTO updates) {
+    public ResponseEntity<UsuarioDTO> actualizarParcialmente(
+            @PathVariable Long id,
+            @Valid @RequestBody UsuarioUpdateDTO updates) {
+
         Usuario usuario = usuarioRepository.findById(id).orElse(null);
+
         if (usuario == null) {
             return ResponseEntity.notFound().build();
         }
@@ -84,29 +99,37 @@ public class UsuarioController {
         if (updates.nombre() != null) {
             usuario.setNombre(updates.nombre());
         }
+
         if (updates.email() != null) {
             usuario.setEmail(updates.email());
         }
+
         if (updates.password() != null && !updates.password().isBlank()) {
             usuario.setPasswordHash(passwordEncoder.encode(updates.password()));
         }
+
         if (updates.telefono() != null) {
             usuario.setTelefono(updates.telefono());
         }
+
         if (updates.rol() != null) {
             usuario.setRol(updates.rol());
         }
 
         Usuario guardado = usuarioRepository.save(usuario);
+
         return ResponseEntity.ok(toDTO(guardado));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarUsuario(@PathVariable Long id) {
+
         if (!usuarioRepository.existsById(id)) {
             return ResponseEntity.notFound().build();
         }
+
         usuarioRepository.deleteById(id);
+
         return ResponseEntity.noContent().build();
     }
 
@@ -116,7 +139,9 @@ public class UsuarioController {
                 usuario.getNombre(),
                 usuario.getEmail(),
                 usuario.getTelefono(),
+                usuario.getNacionalidad(),
                 usuario.getRol(),
-                usuario.getFechaRegistro());
+                usuario.getFechaRegistro()
+        );
     }
 }

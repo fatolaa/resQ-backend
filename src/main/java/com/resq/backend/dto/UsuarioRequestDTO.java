@@ -8,5 +8,6 @@ public record UsuarioRequestDTO(
         @NotBlank(message = "email es obligatorio") @Email(message = "email inválido") String email,
         @NotBlank(message = "password es obligatorio") String password,
         String telefono,
+        @NotBlank(message = "nacionalidad es obligatoria") String nacionalidad,
         @NotBlank(message = "rol es obligatorio") String rol) {
 }
