@@ -7,6 +7,8 @@ public record UsuarioDTO(
         String nombre,
         String email,
         String telefono,
+        String nacionalidad,
         String rol,
-        LocalDateTime fechaRegistro) {
+        LocalDateTime fechaRegistro
+) {
 }

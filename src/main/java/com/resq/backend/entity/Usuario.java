@@ -24,6 +24,9 @@ public class Usuario {
     @Column(name = "telefono", length = 20)
     private String telefono;
 
+    @Column(name = "nacionalidad", length = 100)
+    private String nacionalidad;
+
     @Column(name = "rol", nullable = false, length = 50)
     private String rol;
 
@@ -71,6 +74,14 @@ public class Usuario {
 
     public void setTelefono(String telefono) {
         this.telefono = telefono;
+    }
+
+    public String getNacionalidad() {
+    return nacionalidad;
+    }
+
+    public void setNacionalidad(String nacionalidad) {
+        this.nacionalidad = nacionalidad;
     }
 
     public String getRol() {

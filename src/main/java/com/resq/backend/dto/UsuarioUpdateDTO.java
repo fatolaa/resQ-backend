@@ -7,5 +7,7 @@ public record UsuarioUpdateDTO(
         @Email(message = "email inválido") String email,
         String password,
         String telefono,
-        String rol) {
+        String nacionalidad,
+        String rol
+) {
 }
