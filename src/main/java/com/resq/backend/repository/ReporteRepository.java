@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface ReporteRepository extends JpaRepository<Reporte, Long> {
     List<Reporte> findByIdUsuario(Long idUsuario);
+
+    List<Reporte> findByEstadoIn(List<String> estados);
 }

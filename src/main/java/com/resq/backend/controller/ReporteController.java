@@ -1,5 +1,6 @@
 package com.resq.backend.controller;
 
+import com.resq.backend.dto.ApiError;
 import com.resq.backend.entity.Reporte;
 import com.resq.backend.repository.ReporteRepository;
 import jakarta.validation.Valid;
@@ -7,11 +8,18 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/reportes")
 public class ReporteController {
+
+    private static final Set<String> ESTADOS_PERMITIDOS =
+            Set.of("PENDIENTE", "EN_PROCESO", "RESUELTO", "CANCELADO");
 
     private final ReporteRepository reporteRepository;
 
@@ -20,8 +28,38 @@ public class ReporteController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Reporte>> obtenerReportes() {
-        return ResponseEntity.ok(reporteRepository.findAll());
+    public ResponseEntity<?> obtenerReportes(
+            @RequestParam(name = "estado", required = false) String estado) {
+        List<String> estados = parsearEstados(estado);
+
+        if (estados.isEmpty()) {
+            return ResponseEntity.ok(reporteRepository.findAll());
+        }
+
+        List<String> invalidos = estados.stream()
+                .filter(valor -> !ESTADOS_PERMITIDOS.contains(valor))
+                .toList();
+
+        if (!invalidos.isEmpty()) {
+            String detalle = String.join(", ", invalidos);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiError(HttpStatus.BAD_REQUEST.value(),
+                            "estado invalido: " + detalle + ". Permitidos: " + String.join(", ", ESTADOS_PERMITIDOS),
+                            Map.of("estado", detalle)));
+        }
+
+        return ResponseEntity.ok(reporteRepository.findByEstadoIn(estados));
+    }
+
+    private List<String> parsearEstados(String estado) {
+        if (estado == null || estado.isBlank()) {
+            return List.of();
+        }
+        return Arrays.stream(estado.split(","))
+                .map(String::trim)
+                .filter(valor -> !valor.isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/usuario/{idUsuario}")
