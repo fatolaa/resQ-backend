@@ -51,6 +51,10 @@ public class ReporteController {
         return ResponseEntity.ok(reporteRepository.findByEstadoIn(estados));
     }
 
+    public ResponseEntity<List<Reporte>> obtenerReportes() {
+        return ResponseEntity.ok(reporteRepository.findAll());
+    }
+
     private List<String> parsearEstados(String estado) {
         if (estado == null || estado.isBlank()) {
             return List.of();
