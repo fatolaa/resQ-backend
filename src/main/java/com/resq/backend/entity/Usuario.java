@@ -30,6 +30,11 @@ public class Usuario {
     @Column(name = "fecha_registro")
     private LocalDateTime fechaRegistro;
 
+    // 🆕 HU-17: tipos de ayuda que ofrece el voluntario, guardados separados por coma
+    // (ej: "TRANSPORTE,ALIMENTO"). Queda null/vacío mientras no sea voluntario.
+    @Column(name = "tipo_ayuda", length = 255)
+    private String tipoAyuda;
+
     public Usuario() {
     }
 
@@ -87,5 +92,13 @@ public class Usuario {
 
     public void setFechaRegistro(LocalDateTime fechaRegistro) {
         this.fechaRegistro = fechaRegistro;
+    }
+
+    public String getTipoAyuda() {
+        return tipoAyuda;
+    }
+
+    public void setTipoAyuda(String tipoAyuda) {
+        this.tipoAyuda = tipoAyuda;
     }
 }
