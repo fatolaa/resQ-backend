@@ -1,6 +1,8 @@
 package com.resq.backend.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
@@ -38,6 +40,16 @@ public class Reporte {
 
     @Column(name = "fecha_creacion")
     private LocalDateTime fechaCreacion;
+
+    @DecimalMin(value = "-90.0", message = "latitud debe estar entre -90 y 90")
+    @DecimalMax(value = "90.0", message = "latitud debe estar entre -90 y 90")
+    @Column(name = "latitud")
+    private Double latitud;
+
+    @DecimalMin(value = "-180.0", message = "longitud debe estar entre -180 y 180")
+    @DecimalMax(value = "180.0", message = "longitud debe estar entre -180 y 180")
+    @Column(name = "longitud")
+    private Double longitud;
 
     public Reporte() {
     }
@@ -103,5 +115,21 @@ public class Reporte {
 
     public void setFechaCreacion(LocalDateTime fechaCreacion) {
         this.fechaCreacion = fechaCreacion;
+    }
+
+    public Double getLatitud() {
+        return latitud;
+    }
+
+    public void setLatitud(Double latitud) {
+        this.latitud = latitud;
+    }
+
+    public Double getLongitud() {
+        return longitud;
+    }
+
+    public void setLongitud(Double longitud) {
+        this.longitud = longitud;
     }
 }

@@ -51,6 +51,8 @@ public class ReporteController {
                     reporte.setDescripcion(datosReporte.getDescripcion());
                     reporte.setEstado(datosReporte.getEstado());
                     reporte.setFotoUrl(datosReporte.getFotoUrl());
+                    reporte.setLatitud(datosReporte.getLatitud());
+                    reporte.setLongitud(datosReporte.getLongitud());
                     return ResponseEntity.ok(reporteRepository.save(reporte));
                 })
                 .orElseGet(() -> ResponseEntity.notFound().build());
