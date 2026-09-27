@@ -19,13 +19,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Pruebas del ReporteController enfocadas en el manejo de las coordenadas.
- *
- * El controller es una clase_plana con inyeccion por constructor, asi que se
- * instancia a mano con un repositorio mockeado. No hace falta levantar el
- * contexto de Spring ni conectar a la base de datos.
- */
 @DisplayName("ReporteController: coordenadas del reporte (HU-14)")
 class ReporteControllerTest {
 

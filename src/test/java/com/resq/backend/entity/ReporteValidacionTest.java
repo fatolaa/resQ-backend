@@ -13,12 +13,6 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Pruebas de las restricciones de rango sobre las coordenadas del reporte.
- *
- * Usa el Validator de jakarta.validation directamente, sin contexto de Spring
- * ni base de datos. La ubicacion es opcional: solo se valida cuando viene.
- */
 @DisplayName("Reporte: validacion de coordenadas (HU-14)")
 class ReporteValidacionTest {
 
