@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -18,10 +19,19 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidacion(MethodArgumentNotValidException ex) {
-        Map<String, String> errores = ex.getBindingResult().getFieldErrors().stream()
-                .collect(Collectors.toMap(FieldError::getField, FieldError::getDefaultMessage, (a, b) -> a));
+        Map<String, String> errores = ex.getBindingResult().getAllErrors().stream()
+                .collect(Collectors.toMap(GlobalExceptionHandler::claveDelError,
+                        GlobalExceptionHandler::mensajeDelError, (a, b) -> a));
         return ResponseEntity.badRequest()
                 .body(new ApiError(HttpStatus.BAD_REQUEST.value(), "Error de validación", errores));
+    }
+
+    private static String claveDelError(ObjectError error) {
+        return error instanceof FieldError campo ? campo.getField() : error.getObjectName();
+    }
+
+    private static String mensajeDelError(ObjectError error) {
+        return error.getDefaultMessage() == null ? "valor invalido" : error.getDefaultMessage();
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
