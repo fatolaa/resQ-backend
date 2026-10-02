@@ -73,8 +73,33 @@ Eso significa que conecto a la base de datos correctamente. La API queda en
 Si en su lugar aparece un error de conexion o `access denied`, revisa que la
 `DB_PASSWORD` este bien definida en esa misma terminal.
 
+## Cuenta de administracion (demo)
+
+El panel de administracion exige rol `ADMIN`, asi que al levantar el proyecto
+por primera vez se crea una cuenta de demostracion en `src/main/resources/data.sql`:
+
+| Campo | Valor |
+|---|---|
+| Correo | `admin.demo@resq.com` |
+| Contrasena | `Admin123` |
+
+Sirve para entrar al panel sin tener que crear nada a mano. Se inserta con
+`INSERT IGNORE`, asi que solo aparece la primera vez y nunca pisa una cuenta que
+ya exista.
+
+El correo lleva `.demo` a proposito. En la base compartida del equipo ya hay un
+`admin@resq.com` de una carga inicial anterior, guardado con el rol
+`ADMINISTRADOR` y un hash de ejemplo que no corresponde a ninguna clave: ese
+correo **no** sirve para entrar al panel.
+
+Es una credencial **publica y fija a proposito**: el hash BCrypt esta en el
+repositorio y cualquiera que clone el proyecto puede entrar con ella. Borra esa
+fila de `data.sql` o genera otro hash antes de usar el proyecto fuera del taller.
+
 ## Seguridad
 
 - **NUNCA** subas la contrasena al repositorio: GitHub bloquea el push cuando detecta
   secretos.
+- La unica excepcion es el `admin.demo@resq.com` de demostracion de arriba, que esta
+  en el repositorio a proposito. No lo tomes como ejemplo para una clave real.
 - Prefiere dar a cada integrante la contrasena fuera del repositorio y que la defina en su entorno con `setx`.
