@@ -14,6 +14,29 @@ INSERT IGNORE INTO rol (codigo, nombre, orden) VALUES
   ('VOLUNTARIO', 'Voluntario', 2),
   ('ADMIN',      'Admin',      3);
 
+-- Cuenta de administracion para poder entrar al panel (HU-23). El panel exige
+-- rol 'ADMIN', asi que sin esta fila ninguna base recien creada tiene con quien
+-- probarlo.
+--
+-- El correo es a proposito "admin.demo@" y no "admin@": en la base compartida
+-- del equipo ya existe un admin@resq.com de una carga inicial anterior, con rol
+-- 'ADMINISTRADOR' y un password_hash de ejemplo que no corresponde a ninguna
+-- clave. Con INSERT IGNORE el choque de email hacia que esta fila no se
+-- insertara nunca ahi, y sin cuenta no habia forma de probar el panel.
+--
+-- ATENCION: la clave es fija y publica a proposito, es una credencial de
+-- demostracion. El "password_hash" es un BCrypt de 'Admin123'. Borra esta fila
+-- o cambia el hash antes de usar esto fuera del taller.
+--
+-- El IGNORE evita el error de email duplicado en los arranques siguientes, ya
+-- que este archivo corre en cada inicio; el id se lo deja a AUTO_INCREMENT
+-- porque otras cuentas pueden estar usando los ids bajos. Nunca se actualiza una
+-- fila existente: si alguien cambia la clave de esta cuenta, no se revierte al
+-- reiniciar.
+INSERT IGNORE INTO usuario (nombre, email, telefono, password_hash, rol)
+  VALUES ('Admin Demo', 'admin.demo@resq.com', '70000000',
+          '$2a$10$0XM0wP7eGmey4roTHNAmc.768bHK/d7YECbYpQMnyhqFpWmmg2dNu', 'ADMIN');
+
 -- Coordenadas de demonstracion para que el mapa de casos (HU-14) tenga pines.
 -- Puntos aproximados de zonas del area metropolitana de Cochabamba.
 -- La guarda "AND latitud IS NULL" evita pisar la ubicacion que un usuario
