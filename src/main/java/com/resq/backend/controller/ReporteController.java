@@ -1,6 +1,7 @@
 package com.resq.backend.controller;
 
 import com.resq.backend.dto.ApiError;
+import com.resq.backend.entity.EstadoRevision;
 import com.resq.backend.entity.Reporte;
 import com.resq.backend.repository.ReporteRepository;
 import jakarta.validation.Valid;
@@ -33,7 +34,7 @@ public class ReporteController {
         List<String> estados = parsearEstados(estado);
 
         if (estados.isEmpty()) {
-            return ResponseEntity.ok(reporteRepository.findAll());
+            return ResponseEntity.ok(soloVisibles(reporteRepository.findAll()));
         }
 
         List<String> invalidos = estados.stream()
@@ -48,11 +49,19 @@ public class ReporteController {
                             Map.of("estado", detalle)));
         }
 
-        return ResponseEntity.ok(reporteRepository.findByEstadoIn(estados));
+        return ResponseEntity.ok(soloVisibles(reporteRepository.findByEstadoIn(estados)));
     }
 
     public ResponseEntity<List<Reporte>> obtenerReportes() {
-        return ResponseEntity.ok(reporteRepository.findAll());
+        return ResponseEntity.ok(soloVisibles(reporteRepository.findAll()));
+    }
+
+    // HU-19: los reportes rechazados por un voluntario no se muestran a otros usuarios.
+    // Su dueño sigue viéndolos en /usuario/{idUsuario} para conocer el motivo.
+    private static List<Reporte> soloVisibles(List<Reporte> reportes) {
+        return reportes.stream()
+                .filter(r -> !EstadoRevision.RECHAZADO.equals(r.getEstadoRevision()))
+                .toList();
     }
 
     private List<String> parsearEstados(String estado) {
