@@ -2,6 +2,7 @@ package com.resq.backend.repository;
 
 import com.resq.backend.entity.Reporte;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -11,4 +12,10 @@ public interface ReporteRepository extends JpaRepository<Reporte, Long> {
     List<Reporte> findByIdUsuario(Long idUsuario);
 
     List<Reporte> findByEstadoIn(List<String> estados);
+
+    // HU-19: cola de revision. Los reportes anteriores a HU-19 (estado_revision null)
+    // cuentan como pendientes; los mas antiguos salen primero.
+    @Query("SELECT r FROM Reporte r WHERE r.estadoRevision IS NULL "
+            + "OR r.estadoRevision = 'PENDIENTE_REVISION' ORDER BY r.fechaCreacion ASC")
+    List<Reporte> findPendientesDeRevision();
 }
