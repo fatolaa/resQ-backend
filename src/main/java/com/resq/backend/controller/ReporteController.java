@@ -1,6 +1,7 @@
 package com.resq.backend.controller;
 
 import com.resq.backend.dto.ApiError;
+import com.resq.backend.dto.ReporteEstadoDTO;
 import com.resq.backend.entity.Reporte;
 import com.resq.backend.repository.ReporteRepository;
 import jakarta.validation.Valid;
@@ -181,5 +182,67 @@ public class ReporteController {
         }
         reporteRepository.deleteById(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * HU-24: cambiar el estado sin reenviar el reporte entero. El panel lo usa para
+     * la accion administrativa dedicada y asi no depende de que el resto del caso
+     * siga igual que cuando se abrio la pantalla.
+     *
+     * A diferencia del PUT, aqui el estado no puede saltar de un salto a otro: un
+     * reporte no pasa de PENDIENTE a RESUELTO sin haber pasado por EN_PROCESO. Es lo
+     * que mantiene coherente la informacion que ve la comunidad.
+     */
+    @PatchMapping("/{id}/estado")
+    public ResponseEntity<?> cambiarEstado(@PathVariable Long id,
+                                           @Valid @RequestBody ReporteEstadoDTO datos) {
+        Reporte reporte = reporteRepository.findById(id).orElse(null);
+        if (reporte == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        String destino = datos.estado().trim().toUpperCase();
+
+        if (!ESTADOS_PERMITIDOS.contains(destino)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ApiError(HttpStatus.BAD_REQUEST.value(),
+                            "estado invalido: " + datos.estado() + ". Permitidos: "
+                                    + String.join(", ", ESTADOS_PERMITIDOS),
+                            Map.of("estado", datos.estado())));
+        }
+
+        if (destino.equals(reporte.getEstado())) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ApiError(HttpStatus.CONFLICT.value(),
+                            "el reporte ya se encuentra en " + destino,
+                            Map.of("estado", destino)));
+        }
+
+        Set<String> permitidos = transicionesPermitidas(reporte.getEstado());
+        if (!permitidos.contains(destino)) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ApiError(HttpStatus.CONFLICT.value(),
+                            "no se puede pasar de " + reporte.getEstado() + " a " + destino
+                                    + ". Desde " + reporte.getEstado() + " se permite: "
+                                    + String.join(", ", permitidos),
+                            Map.of("estado", destino)));
+        }
+
+        reporte.setEstado(destino);
+        return ResponseEntity.ok(reporteRepository.save(reporte));
+    }
+
+    /**
+     * Un caso siempre se puede reabrir y nunca se queda trabado: si el animal sigue
+     * en la calle, RESUELTO y CANCELADO vuelven a PENDIENTE.
+     */
+    private Set<String> transicionesPermitidas(String estadoActual) {
+        return switch (estadoActual) {
+            case "PENDIENTE" -> Set.of("EN_PROCESO", "CANCELADO");
+            case "EN_PROCESO" -> Set.of("RESUELTO", "CANCELADO", "PENDIENTE");
+            case "RESUELTO" -> Set.of("EN_PROCESO", "PENDIENTE");
+            case "CANCELADO" -> Set.of("PENDIENTE");
+            default -> Set.of();
+        };
     }
 }
