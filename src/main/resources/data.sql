@@ -34,10 +34,14 @@ INSERT IGNORE INTO rol (codigo, nombre, orden) VALUES
 UPDATE usuario SET rol = 'ADMIN'   WHERE rol = 'ADMINISTRADOR';
 UPDATE usuario SET rol = 'USUARIO' WHERE rol = 'CIUDADANO';
 
--- 'ORGANIZACION' queda sin tocar a proposito. No tiene contraparte en el
--- dominio, ningun codigo del back ni del front lo maneja, y decidir a que rol
--- degradar esas cuentas (o si son datos de relleno que hay que borrar) es una
--- decision de producto, no una limpieza de datos.
+-- No hay un DELETE para 'ORGANIZACION' a proposito, y no debe agregarse. Ese rol
+-- existio en una carga manual antigua (hashes que decian literalmente
+-- "ejemploHashOrg001", y direcciones de Bogota en un proyecto de Cochabamba), y
+-- sus 3 cuentas se borraron de la base compartida el 2026-10-05. Ese DELETE fue
+-- una limpieza puntual y no va aca: este archivo corre en CADA arranque, asi que
+-- un DELETE dejaria sin avisar cualquier cuenta de organizacion que alguien
+-- creara mas adelante. Si vuelve a aparecer rol='ORGANIZACION', es dato nuevo y
+-- hay que decidir que hacer con el.
 
 -- Cuenta de administracion para poder entrar al panel (HU-23). El panel exige
 -- rol 'ADMIN', asi que sin esta fila ninguna base recien creada tiene con quien
