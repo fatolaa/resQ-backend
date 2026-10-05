@@ -10,12 +10,41 @@ import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private final long maxBytesFoto;
+
+    public GlobalExceptionHandler(@Value("${resq.fotos.max-bytes:5242880}") long maxBytesFoto) {
+        this.maxBytesFoto = maxBytesFoto;
+    }
+
+    @ExceptionHandler(FotoInvalidaException.class)
+    public ResponseEntity<ApiError> handleFotoInvalida(FotoInvalidaException ex) {
+        return ResponseEntity.status(ex.getStatus())
+                .body(new ApiError(ex.getStatus().value(), ex.getMessage(), Map.of("foto", ex.getMessage())));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleTamanoExcedido(MaxUploadSizeExceededException ex) {
+        String mensaje = "La fotografía supera el tamaño máximo permitido de " + (maxBytesFoto / (1024 * 1024)) + " MB";
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE)
+                .body(new ApiError(HttpStatus.PAYLOAD_TOO_LARGE.value(), mensaje, Map.of("foto", mensaje)));
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ApiError> handleParteFaltante(MissingServletRequestPartException ex) {
+        return ResponseEntity.badRequest()
+                .body(new ApiError(HttpStatus.BAD_REQUEST.value(), "Debes seleccionar una fotografía",
+                        Map.of("foto", "obligatoria")));
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidacion(MethodArgumentNotValidException ex) {
