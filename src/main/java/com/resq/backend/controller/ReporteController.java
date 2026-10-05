@@ -2,6 +2,7 @@ package com.resq.backend.controller;
 
 import com.resq.backend.dto.ApiError;
 import com.resq.backend.dto.ReporteEstadoDTO;
+import com.resq.backend.entity.EstadoRevision;
 import com.resq.backend.entity.Reporte;
 import com.resq.backend.repository.ReporteRepository;
 import jakarta.validation.Valid;
@@ -66,23 +67,38 @@ public class ReporteController {
 
         if (!texto.isEmpty()) {
             return ResponseEntity.ok(estados.isEmpty()
-                    ? reporteRepository.buscar(texto, sort)
-                    : reporteRepository.buscarPorEstados(texto, estados, sort));
+                    ? soloVisibles(reporteRepository.buscar(texto, sort))
+                    : soloVisibles(reporteRepository.buscarPorEstados(texto, estados, sort)));
         }
 
         if (estados.isEmpty()) {
             return ResponseEntity.ok(sort == null
-                    ? reporteRepository.findAll()
-                    : reporteRepository.findAll(sort));
+                    ? soloVisibles(reporteRepository.findAll())
+                    : soloVisibles(reporteRepository.findAll(sort)));
         }
 
         return ResponseEntity.ok(sort == null
-                ? reporteRepository.findByEstadoIn(estados)
-                : reporteRepository.findByEstadoIn(estados, sort));
+                ? soloVisibles(reporteRepository.findByEstadoIn(estados))
+                : soloVisibles(reporteRepository.findByEstadoIn(estados, sort)));
     }
 
     public ResponseEntity<List<Reporte>> obtenerReportes() {
-        return ResponseEntity.ok(reporteRepository.findAll());
+        return ResponseEntity.ok(soloVisibles(reporteRepository.findAll()));
+    }
+
+    /**
+     * HU-19: los reportes rechazados por un voluntario no se muestran a otros usuarios.
+     * Se aplica a todos los caminos del listado, incluyendo busqueda y orden de HU-24,
+     * para que un rechazo no se esquive filtrando por otra via. Su dueno sigue
+     * viendolos en /usuario/{idUsuario} para conocer el motivo.
+     */
+    private static List<Reporte> soloVisibles(List<Reporte> reportes) {
+        if (reportes == null) {
+            return List.of();
+        }
+        return reportes.stream()
+                .filter(r -> !EstadoRevision.RECHAZADO.equals(r.getEstadoRevision()))
+                .toList();
     }
 
     private ResponseEntity<?> validarEstados(List<String> estados) {

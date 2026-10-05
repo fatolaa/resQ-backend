@@ -34,4 +34,10 @@ public interface ReporteRepository extends JpaRepository<Reporte, Long> {
     List<Reporte> buscarPorEstados(@Param("texto") String texto,
                                    @Param("estados") List<String> estados,
                                    Sort sort);
+
+    // HU-19: cola de revision. Los reportes anteriores a HU-19 (estado_revision null)
+    // cuentan como pendientes; los mas antiguos salen primero.
+    @Query("SELECT r FROM Reporte r WHERE r.estadoRevision IS NULL "
+            + "OR r.estadoRevision = 'PENDIENTE_REVISION' ORDER BY r.fechaCreacion ASC")
+    List<Reporte> findPendientesDeRevision();
 }
