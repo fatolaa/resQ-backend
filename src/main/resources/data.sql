@@ -14,17 +14,30 @@ INSERT IGNORE INTO rol (codigo, nombre, orden) VALUES
   ('VOLUNTARIO', 'Voluntario', 2),
   ('ADMIN',      'Admin',      3);
 
--- Normaliza el rol de las cuentas que una carga inicial antigua dejo como
--- 'ADMINISTRADOR' (HU-23). El dominio de arriba solo admite 'ADMIN', y el panel
--- exige hasRole("ADMIN"), asi que con el valor largo esas cuentas no entraban al
--- panel y tampoco se podian editar: las funciones administrativas son
--- admin-only y al devolverles un rol invalido el PUT/PATCH terminaba en 400.
+-- Normaliza los roles que una carga inicial antigua dejo fuera del dominio de
+-- arriba. Son filas que ninguna version de este archivo sembro: quedaron
+-- cargadas por fuera del repositorio, y por eso sus password_hash no son
+-- BCrypt valido (28 caracteres, cuando BCrypt siempre mide 60).
 --
--- Es idempotente: en la segunda corrida no queda ninguna fila que actualizar.
--- No se tocan los otros roles que quedaron sueltos ('CIUDADANO',
--- 'ORGANIZACION') porque no tienen equivalencia obvious en el dominio, y decidir
--- a que rol degradarlos es una decision de producto, no una limpieza de datos.
-UPDATE usuario SET rol = 'ADMIN' WHERE rol = 'ADMINISTRADOR';
+-- 'ADMINISTRADOR' es el nombre largo de 'ADMIN'. Con ese valor las cuentas no
+-- entraban al panel (que exige hasRole("ADMIN")) y tampoco se podian editar: las
+-- funciones administrativas son admin-only, y al devolverles un rol que no esta
+-- en ROLES_VALIDOS el PUT/PATCH terminaba en 400.
+--
+-- 'CIUDADANO' es solo otra forma de decir 'USUARIO', y el frontend ya la
+-- trataba como tal (esGestorDeReportes("CIUDADANO") era false, o sea que se
+-- comportaba como un usuario comun). Mapearla no cambia ningun permiso, solo
+-- deja el valor dentro del dominio.
+--
+-- Ambos UPDATE son idempotentes: en la segunda corrida no queda ninguna fila que
+-- actualizar.
+UPDATE usuario SET rol = 'ADMIN'   WHERE rol = 'ADMINISTRADOR';
+UPDATE usuario SET rol = 'USUARIO' WHERE rol = 'CIUDADANO';
+
+-- 'ORGANIZACION' queda sin tocar a proposito. No tiene contraparte en el
+-- dominio, ningun codigo del back ni del front lo maneja, y decidir a que rol
+-- degradar esas cuentas (o si son datos de relleno que hay que borrar) es una
+-- decision de producto, no una limpieza de datos.
 
 -- Cuenta de administracion para poder entrar al panel (HU-23). El panel exige
 -- rol 'ADMIN', asi que sin esta fila ninguna base recien creada tiene con quien
