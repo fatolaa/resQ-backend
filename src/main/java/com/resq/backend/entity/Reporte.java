@@ -60,6 +60,8 @@ public class Reporte {
     // desde /api/reportes/revision. Son nullables para no romper reportes viejos
     // (null se trata como pendiente de revision).
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @Pattern(regexp = EstadoRevision.PENDIENTE + "|" + EstadoRevision.APROBADO + "|" + EstadoRevision.RECHAZADO,
+            message = "estadoRevision debe ser PENDIENTE_REVISION, APROBADO o RECHAZADO")
     @Column(name = "estado_revision", length = 30)
     private String estadoRevision;
 
