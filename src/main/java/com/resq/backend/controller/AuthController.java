@@ -3,6 +3,7 @@ package com.resq.backend.controller;
 import com.resq.backend.dto.ApiError;
 import com.resq.backend.entity.Usuario;
 import com.resq.backend.repository.UsuarioRepository;
+import com.resq.backend.security.JwtService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,10 +17,14 @@ public class AuthController {
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public AuthController(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
+    public AuthController(UsuarioRepository usuarioRepository,
+                          PasswordEncoder passwordEncoder,
+                          JwtService jwtService) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     @PostMapping("/login")
@@ -35,6 +40,7 @@ public class AuthController {
 
         return ResponseEntity.ok(Map.of(
                 "message", "Login exitoso de " + usuario.getNombre(),
+                "token", jwtService.generarToken(usuario),
                 "idUsuario", usuario.getIdUsuario(),
                 "email", usuario.getEmail(),
                 "rol", usuario.getRol()));

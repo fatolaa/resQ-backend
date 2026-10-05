@@ -10,6 +10,8 @@ import com.resq.backend.repository.ReporteRepository;
 import com.resq.backend.repository.UsuarioRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,8 +28,9 @@ import java.util.Optional;
  * Al decidir se notifica al dueño del reporte. Los reportes rechazados dejan de
  * aparecer en el listado público (ver ReporteController).
  *
- * Nota: el proyecto aún no tiene autenticación por token, así que el revisor se
- * identifica con idRevisor y se valida su rol contra la base de datos.
+ * Nota: desde HU-23 el proyecto tiene autenticación por token, asi que el rol del
+ * revisor se exige en SecurityConfig y ademas se contrasta con el id del token en
+ * puedeRevisar, para que el idRevisor de la peticion no sea el que manda.
  */
 @RestController
 @RequestMapping("/api/reportes/revision")
@@ -119,10 +122,33 @@ public class RevisionReporteController {
         if (idUsuario == null) {
             return false;
         }
+
+        // Con JWT el token ya dice quien es el revisor. Aceptar un idRevisor
+        // distinto al del token seria un IDOR: un voluntario podria decidir en nombre
+        // de otra cuenta que si tiene el rol. Cuando todavia no hay sesion (llamadas
+        // directas sin token) se conserva la validacion por base de datos.
+        Long idAutenticado = idUsuarioAutenticado();
+        if (idAutenticado != null && !idAutenticado.equals(idUsuario)) {
+            return false;
+        }
+
         return usuarioRepository.findById(idUsuario)
                 .map(usuario -> "VOLUNTARIO".equalsIgnoreCase(usuario.getRol())
                         || "ADMIN".equalsIgnoreCase(usuario.getRol()))
                 .orElse(false);
+    }
+
+    /** El id del usuario autenticado, o null si la peticion no tiene sesion. */
+    private Long idUsuarioAutenticado() {
+        Authentication autenticacion = SecurityContextHolder.getContext().getAuthentication();
+        if (autenticacion == null || autenticacion.getPrincipal() == null) {
+            return null;
+        }
+        try {
+            return Long.parseLong(String.valueOf(autenticacion.getPrincipal()));
+        } catch (NumberFormatException principalInvalido) {
+            return null;
+        }
     }
 
     private ResponseEntity<ApiError> sinPermiso() {
