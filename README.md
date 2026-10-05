@@ -87,10 +87,11 @@ Sirve para entrar al panel sin tener que crear nada a mano. Se inserta con
 `INSERT IGNORE`, asi que solo aparece la primera vez y nunca pisa una cuenta que
 ya exista.
 
-El correo lleva `.demo` a proposito. En la base compartida del equipo ya hay un
-`admin@resq.com` de una carga inicial anterior, guardado con el rol
-`ADMINISTRADOR` y un hash de ejemplo que no corresponde a ninguna clave: ese
-correo **no** sirve para entrar al panel.
+El correo lleva `.demo` a proposito, para que nunca se confunda con una cuenta
+real. Las cuentas de relleno de la carga inicial (`admin@resq.com`,
+`soporte@resq.com`, `sistemas@resq.com`, y las de `ciudadano*`) se eliminaron de
+la base compartida el 2026-10-05: sus `password_hash` eran texto de relleno
+(`$2a$10$ejemploHash...`), no un BCrypt, asi que nunca pudieron iniciar sesion.
 
 Es una credencial **publica y fija a proposito**: el hash BCrypt esta en el
 repositorio y cualquiera que clone el proyecto puede entrar con ella. Borra esa

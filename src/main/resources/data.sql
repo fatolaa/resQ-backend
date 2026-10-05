@@ -47,13 +47,11 @@ UPDATE usuario SET rol = 'USUARIO' WHERE rol = 'CIUDADANO';
 -- rol 'ADMIN', asi que sin esta fila ninguna base recien creada tiene con quien
 -- probarlo.
 --
--- El correo es a proposito "admin.demo@" y no "admin@": en la base compartida
--- del equipo ya existe un admin@resq.com de una carga inicial anterior, con un
--- password_hash de ejemplo de 26 caracteres que no es un BCrypt valido (BCrypt
--- siempre mide 60), asi que no corresponde a ninguna clave. Con INSERT IGNORE el
--- choque de email hacia que esta fila no se insertara nunca ahi, y sin cuenta no
--- habia forma de probar el panel. El UPDATE de arriba ya le normaliza el rol;
--- lo que sigue sin poder es entrar, por el hash.
+-- El correo lleva ".demo" a proposito, para que no se confunda con una cuenta
+-- real. Antes justificaba el ".demo" que en la base compartida hubiera un
+-- admin@resq.com de una carga inicial antigua, con un password_hash de ejemplo
+-- que no era un BCrypt; esas cuentas de relleno se borraron el 2026-10-05, pero
+-- el nombre queda para que la credencial publica de abajo no parezca real.
 --
 -- ATENCION: la clave es fija y publica a proposito, es una credencial de
 -- demostracion. El "password_hash" es un BCrypt de 'Admin123'. Borra esta fila
