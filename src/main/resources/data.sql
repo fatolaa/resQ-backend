@@ -14,15 +14,29 @@ INSERT IGNORE INTO rol (codigo, nombre, orden) VALUES
   ('VOLUNTARIO', 'Voluntario', 2),
   ('ADMIN',      'Admin',      3);
 
+-- Normaliza el rol de las cuentas que una carga inicial antigua dejo como
+-- 'ADMINISTRADOR' (HU-23). El dominio de arriba solo admite 'ADMIN', y el panel
+-- exige hasRole("ADMIN"), asi que con el valor largo esas cuentas no entraban al
+-- panel y tampoco se podian editar: las funciones administrativas son
+-- admin-only y al devolverles un rol invalido el PUT/PATCH terminaba en 400.
+--
+-- Es idempotente: en la segunda corrida no queda ninguna fila que actualizar.
+-- No se tocan los otros roles que quedaron sueltos ('CIUDADANO',
+-- 'ORGANIZACION') porque no tienen equivalencia obvious en el dominio, y decidir
+-- a que rol degradarlos es una decision de producto, no una limpieza de datos.
+UPDATE usuario SET rol = 'ADMIN' WHERE rol = 'ADMINISTRADOR';
+
 -- Cuenta de administracion para poder entrar al panel (HU-23). El panel exige
 -- rol 'ADMIN', asi que sin esta fila ninguna base recien creada tiene con quien
 -- probarlo.
 --
 -- El correo es a proposito "admin.demo@" y no "admin@": en la base compartida
--- del equipo ya existe un admin@resq.com de una carga inicial anterior, con rol
--- 'ADMINISTRADOR' y un password_hash de ejemplo que no corresponde a ninguna
--- clave. Con INSERT IGNORE el choque de email hacia que esta fila no se
--- insertara nunca ahi, y sin cuenta no habia forma de probar el panel.
+-- del equipo ya existe un admin@resq.com de una carga inicial anterior, con un
+-- password_hash de ejemplo de 26 caracteres que no es un BCrypt valido (BCrypt
+-- siempre mide 60), asi que no corresponde a ninguna clave. Con INSERT IGNORE el
+-- choque de email hacia que esta fila no se insertara nunca ahi, y sin cuenta no
+-- habia forma de probar el panel. El UPDATE de arriba ya le normaliza el rol;
+-- lo que sigue sin poder es entrar, por el hash.
 --
 -- ATENCION: la clave es fija y publica a proposito, es una credencial de
 -- demostracion. El "password_hash" es un BCrypt de 'Admin123'. Borra esta fila
