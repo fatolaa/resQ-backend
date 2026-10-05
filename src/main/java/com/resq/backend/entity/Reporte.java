@@ -1,5 +1,6 @@
 package com.resq.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.resq.backend.validation.CoordenadasCoherentes;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMax;
@@ -53,6 +54,29 @@ public class Reporte {
     @Column(name = "longitud")
     private Double longitud;
 
+    // ============ HU-19: revision de la solicitud por un voluntario ============
+    // Son de solo lectura desde el JSON: un usuario no puede aprobar su propio
+    // reporte mandando estadoRevision en el POST/PUT. Estos campos solo cambian
+    // desde /api/reportes/revision. Son nullables para no romper reportes viejos
+    // (null se trata como pendiente de revision).
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @Pattern(regexp = EstadoRevision.PENDIENTE + "|" + EstadoRevision.APROBADO + "|" + EstadoRevision.RECHAZADO,
+            message = "estadoRevision debe ser PENDIENTE_REVISION, APROBADO o RECHAZADO")
+    @Column(name = "estado_revision", length = 30)
+    private String estadoRevision;
+
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @Column(name = "nota_revision", length = 500)
+    private String notaRevision;
+
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @Column(name = "id_revisor")
+    private Long idRevisor;
+
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @Column(name = "fecha_revision")
+    private LocalDateTime fechaRevision;
+
     public Reporte() {
     }
 
@@ -60,6 +84,9 @@ public class Reporte {
     public void prePersist() {
         if (fechaCreacion == null) {
             fechaCreacion = LocalDateTime.now();
+        }
+        if (estadoRevision == null) {
+            estadoRevision = EstadoRevision.PENDIENTE;
         }
     }
 
@@ -133,5 +160,37 @@ public class Reporte {
 
     public void setLongitud(Double longitud) {
         this.longitud = longitud;
+    }
+
+    public String getEstadoRevision() {
+        return estadoRevision;
+    }
+
+    public void setEstadoRevision(String estadoRevision) {
+        this.estadoRevision = estadoRevision;
+    }
+
+    public String getNotaRevision() {
+        return notaRevision;
+    }
+
+    public void setNotaRevision(String notaRevision) {
+        this.notaRevision = notaRevision;
+    }
+
+    public Long getIdRevisor() {
+        return idRevisor;
+    }
+
+    public void setIdRevisor(Long idRevisor) {
+        this.idRevisor = idRevisor;
+    }
+
+    public LocalDateTime getFechaRevision() {
+        return fechaRevision;
+    }
+
+    public void setFechaRevision(LocalDateTime fechaRevision) {
+        this.fechaRevision = fechaRevision;
     }
 }

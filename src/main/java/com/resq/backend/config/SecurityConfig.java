@@ -19,6 +19,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private static final String ROL_ADMIN = "ADMIN";
+    private static final String ROL_VOLUNTARIO = "VOLUNTARIO";
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RestAuthenticationEntryPoint authenticationEntryPoint;
@@ -58,12 +59,34 @@ public class SecurityConfig {
                 .exceptionHandling(excepciones -> excepciones
                         .authenticationEntryPoint(authenticationEntryPoint))
                 .authorizeHttpRequests(auth -> auth
+                        // El orden importa: en Spring Security gana el primer patron que
+                        // coincide, asi que las reglas especificas van antes de las generales.
+
                         // Publicas: el alta de cuentas (HU-01) y el login no pueden exigir sesion.
                         .requestMatchers(HttpMethod.POST, "/api/usuarios").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
 
+                        // HU-10: la foto se muestra con un <img> en el mapa del landing, que es
+                        // publico. Un <img> no pasa por el interceptor de Angular, asi que nunca
+                        // manda Authorization: si esto exigiera sesion, la imagen no se veria.
+                        // La subida si va por HttpClient, ahi si llega el token.
+                        .requestMatchers(HttpMethod.GET, "/api/reportes/fotos/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/reportes/fotos").authenticated()
+
+                        // HU-19: revisar solicitudes es de voluntarios y administradores.
+                        // Esta regla tiene que ir ANTES del permitAll de reportes de abajo:
+                        // /api/reportes/revision/pendientes es un GET bajo /api/reportes/**,
+                        // y sin esta regla la cola de revision quedaria abierta a cualquiera.
+                        .requestMatchers(HttpMethod.GET, "/api/reportes/revision/**")
+                        .hasAnyRole(ROL_VOLUNTARIO, ROL_ADMIN)
+                        .requestMatchers(HttpMethod.POST, "/api/reportes/revision/**")
+                        .hasAnyRole(ROL_VOLUNTARIO, ROL_ADMIN)
+
                         // El mapa del landing muestra casos a quien no ha iniciado sesion.
                         .requestMatchers(HttpMethod.GET, "/api/reportes/**").permitAll()
+
+                        // HU-19: las notificaciones son de un usuario concreto, nunca publicas.
+                        .requestMatchers("/api/notificaciones/**").authenticated()
 
                         // HU-17: el propio usuario se registra como voluntario. No es una funcion
                         // administrativa, asi que se permite a cualquier usuario autenticado y el

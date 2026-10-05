@@ -13,7 +13,7 @@ import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@DisplayName("Reporte: validacion de coordenadas (HU-14)")
+@DisplayName("Reporte: validacion de la entidad (HU-14, HU-19)")
 class ReporteValidacionTest {
 
     private static ValidatorFactory validatorFactory;
@@ -89,5 +89,34 @@ class ReporteValidacionTest {
         reporte.setLongitud(-180.0);
 
         assertThat(validar()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("acepta los tres estados de revision de HU-19")
+    void debeAceptarLosEstadosDeRevisionValidos() {
+        reporte.setEstadoRevision(EstadoRevision.PENDIENTE);
+        assertThat(viola("estadoRevision")).isFalse();
+
+        reporte.setEstadoRevision(EstadoRevision.APROBADO);
+        assertThat(viola("estadoRevision")).isFalse();
+
+        reporte.setEstadoRevision(EstadoRevision.RECHAZADO);
+        assertThat(viola("estadoRevision")).isFalse();
+    }
+
+    @Test
+    @DisplayName("acepta estadoRevision null porque los reportes viejos no lo tienen")
+    void debeAceptarEstadoRevisionNull() {
+        reporte.setEstadoRevision(null);
+
+        assertThat(viola("estadoRevision")).isFalse();
+    }
+
+    @Test
+    @DisplayName("rechaza un estado de revision que no es valido")
+    void debeRechazarEstadoRevisionInvalido() {
+        reporte.setEstadoRevision("APROBADO_");
+
+        assertThat(viola("estadoRevision")).isTrue();
     }
 }
