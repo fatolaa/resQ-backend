@@ -7,6 +7,8 @@ import com.resq.backend.dto.UsuarioUpdateDTO;
 import com.resq.backend.dto.VoluntarioRequestDTO;
 import com.resq.backend.entity.Usuario;
 import com.resq.backend.repository.UsuarioRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -22,6 +24,8 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/usuarios")
 public class UsuarioController {
+
+    private static final Logger logger = LoggerFactory.getLogger(UsuarioController.class);
 
     // Tipos de ayuda válidos (mismas categorías que ya se muestran en el landing)
     private static final Set<String> TIPOS_AYUDA_VALIDOS = Set.of(
@@ -49,26 +53,38 @@ public class UsuarioController {
     // HU-23: el listado completo solo lo consulta el administrador (lo restringe SecurityConfig).
     @GetMapping
     public ResponseEntity<List<UsuarioDTO>> obtenerUsuarios() {
+        logger.info("Consultando listado completo de usuarios");
         List<UsuarioDTO> usuarios = usuarioRepository.findAll().stream()
                 .map(this::toDTO)
                 .toList();
+        logger.info("Se encontraron {} usuarios", usuarios.size());
         return ResponseEntity.ok(usuarios);
     }
 
     // Ver una cuenta concreta: la puede pedir su propietario o el administrador.
     @GetMapping("/{id}")
     public ResponseEntity<?> obtenerUsuarioPorId(@PathVariable Long id) {
+        logger.info("Consultando usuario con ID: {}", id);
         if (!puedeAccederA(id)) {
+            logger.warn("Acceso denegado a usuario ID: {}", id);
             return prohibido("No puedes consultar la informacion de otra cuenta");
         }
         return usuarioRepository.findById(id)
-                .map(usuario -> ResponseEntity.ok(toDTO(usuario)))
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .map(usuario -> {
+                    logger.info("Usuario ID: {} encontrado", id);
+                    return ResponseEntity.ok(toDTO(usuario));
+                })
+                .orElseGet(() -> {
+                    logger.warn("Usuario ID: {} no encontrado", id);
+                    return ResponseEntity.notFound().build();
+                });
     }
 
     @PostMapping
     public ResponseEntity<?> crearUsuario(@Valid @RequestBody UsuarioRequestDTO request) {
+        logger.info("Creando nuevo usuario con email: {}", request.email());
         if (!ROLES_ASIGNABLES_EN_ALTA.contains(normalizarRol(request.rol()))) {
+            logger.warn("Intento de crear usuario con rol no permitido: {}", request.rol());
             return prohibido("El rol ADMIN solo puede concederlo un administrador");
         }
 
@@ -80,19 +96,23 @@ public class UsuarioController {
         usuario.setRol(normalizarRol(request.rol()));
 
         Usuario guardado = usuarioRepository.save(usuario);
+        logger.info("Usuario creado exitosamente con ID: {}", guardado.getIdUsuario());
         return ResponseEntity.status(HttpStatus.CREATED).body(toDTO(guardado));
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizarUsuario(@PathVariable Long id,
 @Valid @RequestBody UsuarioRequestDTO request) {
+        logger.info("Actualizando usuario ID: {}", id);
         ResponseEntity<?> rolInvalido = validarRol(request.rol());
         if (rolInvalido != null) {
+            logger.warn("Rol inválido al actualizar usuario ID: {}", id);
             return rolInvalido;
         }
 
         Usuario usuario = usuarioRepository.findById(id).orElse(null);
         if (usuario == null) {
+            logger.warn("Usuario ID: {} no encontrado para actualizar", id);
             return ResponseEntity.notFound().build();
         }
 
@@ -105,21 +125,25 @@ public class UsuarioController {
         usuario.setRol(normalizarRol(request.rol()));
 
         Usuario guardado = usuarioRepository.save(usuario);
+        logger.info("Usuario ID: {} actualizado correctamente", id);
         return ResponseEntity.ok(toDTO(guardado));
     }
 
     @PatchMapping("/{id}")
     public ResponseEntity<?> actualizarParcialmente(@PathVariable Long id,
                                                              @Valid @RequestBody UsuarioUpdateDTO updates) {
+        logger.info("Actualización parcial del usuario ID: {}", id);
         if (updates.rol() != null) {
             ResponseEntity<?> rolInvalido = validarRol(updates.rol());
             if (rolInvalido != null) {
+                logger.warn("Rol inválido en actualización parcial del usuario ID: {}", id);
                 return rolInvalido;
             }
         }
 
         Usuario usuario = usuarioRepository.findById(id).orElse(null);
         if (usuario == null) {
+            logger.warn("Usuario ID: {} no encontrado para actualización parcial", id);
             return ResponseEntity.notFound().build();
         }
 
@@ -140,6 +164,7 @@ public class UsuarioController {
         }
 
         Usuario guardado = usuarioRepository.save(usuario);
+        logger.info("Usuario ID: {} actualizado parcialmente", id);
         return ResponseEntity.ok(toDTO(guardado));
     }
 
@@ -147,22 +172,27 @@ public class UsuarioController {
     @PatchMapping("/{id}/voluntario")
     public ResponseEntity<?> registrarVoluntario(@PathVariable Long id,
                                                   @Valid @RequestBody VoluntarioRequestDTO request) {
+        logger.info("Usuario ID: {} solicita registrarse como voluntario", id);
         if (!puedeAccederA(id)) {
+            logger.warn("Acceso denegado para registrarse como voluntario. ID: {}", id);
             return prohibido("No puedes Inscribirte como voluntario en otra cuenta");
         }
 
         Usuario usuario = usuarioRepository.findById(id).orElse(null);
         if (usuario == null) {
+            logger.warn("Usuario ID: {} no encontrado para registro de voluntario", id);
             return ResponseEntity.notFound().build();
         }
 
         if ("VOLUNTARIO".equalsIgnoreCase(usuario.getRol())) {
+            logger.warn("Usuario ID: {} ya es voluntario", id);
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(new ApiError(HttpStatus.CONFLICT.value(), "Este usuario ya es voluntario", null));
         }
 
         List<String> tiposInvalidos = tiposInvalidos(request.tiposAyuda());
         if (!tiposInvalidos.isEmpty()) {
+            logger.warn("Tipos de ayuda inválidos para usuario ID: {} - {}", id, tiposInvalidos);
             return respuestaTiposInvalidos(tiposInvalidos);
         }
 
@@ -170,6 +200,7 @@ public class UsuarioController {
         usuario.setTipoAyuda(String.join(",", request.tiposAyuda()));
 
         Usuario guardado = usuarioRepository.save(usuario);
+        logger.info("Usuario ID: {} ahora es voluntario", id);
         return ResponseEntity.ok(toDTO(guardado));
     }
 
@@ -177,16 +208,20 @@ public class UsuarioController {
     @PatchMapping("/{id}/voluntario/tipos-ayuda")
     public ResponseEntity<?> actualizarTiposAyuda(@PathVariable Long id,
                                                    @Valid @RequestBody VoluntarioRequestDTO request) {
+        logger.info("Actualizando tipos de ayuda del voluntario ID: {}", id);
         if (!puedeAccederA(id)) {
+            logger.warn("Acceso denegado a tipos de ayuda del usuario ID: {}", id);
             return prohibido("No puedes editar los tipos de ayuda de otra cuenta");
         }
 
         Usuario usuario = usuarioRepository.findById(id).orElse(null);
         if (usuario == null) {
+            logger.warn("Usuario ID: {} no encontrado para editar tipos de ayuda", id);
             return ResponseEntity.notFound().build();
         }
 
         if (!"VOLUNTARIO".equalsIgnoreCase(usuario.getRol())) {
+            logger.warn("Usuario ID: {} no es voluntario, no puede editar tipos de ayuda", id);
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(new ApiError(HttpStatus.CONFLICT.value(),
                             "Primero debes registrarte como voluntario", null));
@@ -194,30 +229,36 @@ public class UsuarioController {
 
         List<String> tiposInvalidos = tiposInvalidos(request.tiposAyuda());
         if (!tiposInvalidos.isEmpty()) {
+            logger.warn("Tipos de ayuda inválidos en edición. Usuario ID: {} - {}", id, tiposInvalidos);
             return respuestaTiposInvalidos(tiposInvalidos);
         }
 
         usuario.setTipoAyuda(String.join(",", request.tiposAyuda()));
 
         Usuario guardado = usuarioRepository.save(usuario);
+        logger.info("Tipos de ayuda actualizados para usuario ID: {}", id);
         return ResponseEntity.ok(toDTO(guardado));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> eliminarUsuario(@PathVariable Long id) {
+        logger.info("Solicitud de eliminación del usuario ID: {}", id);
         // Borrarse a si mismo deja la aplicacion sin ningun administrador: el panel
         // de usuarios quedaria inaccesible para siempre. Se bloquea en el servidor
         // y no solo en la interfaz.
         if (idUsuarioAutenticado() != null && idUsuarioAutenticado().equals(id)) {
+            logger.warn("Intento de eliminar la propia cuenta administrativa. ID: {}", id);
             return ResponseEntity.badRequest()
                     .body(new ApiError(HttpStatus.BAD_REQUEST.value(),
                             "No puedes eliminar tu propia cuenta administrativa", null));
         }
 
         if (!usuarioRepository.existsById(id)) {
+            logger.warn("Usuario ID: {} no encontrado para eliminar", id);
             return ResponseEntity.notFound().build();
         }
         usuarioRepository.deleteById(id);
+        logger.info("Usuario ID: {} eliminado correctamente", id);
         return ResponseEntity.noContent().build();
     }
 
