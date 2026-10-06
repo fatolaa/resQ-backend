@@ -6,6 +6,8 @@ import com.resq.backend.entity.EstadoRevision;
 import com.resq.backend.entity.Reporte;
 import com.resq.backend.repository.ReporteRepository;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,14 +23,11 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/reportes")
 public class ReporteController {
 
+    private static final Logger logger = LoggerFactory.getLogger(ReporteController.class);
+
     private static final Set<String> ESTADOS_PERMITIDOS =
             Set.of("PENDIENTE", "EN_PROCESO", "RESUELTO", "CANCELADO");
 
-    /**
-     * HU-24: ordenes que el administrador puede pedir al listar los casos. Sin el
-     * parametro la consulta conserva su orden natural, que es lo que espera el resto
-     * de consumidores de este endpoint (mapa, perfil); el panel siempre lo manda.
-     */
     private static final Set<String> ORDENES_PERMITIDOS = Set.of("RECIENTES", "ANTIGUOS");
 
     private final ReporteRepository reporteRepository;
@@ -37,10 +36,6 @@ public class ReporteController {
         this.reporteRepository = reporteRepository;
     }
 
-    /**
-     * Atajo para las llamadas que solo filtran por estado: no lleva anotacion de
-     * mapeo porque la ruta GET /api/reportes es la de arriba.
-     */
     public ResponseEntity<?> obtenerReportes(String estado) {
         return obtenerReportes(estado, null, null);
     }
@@ -50,15 +45,19 @@ public class ReporteController {
             @RequestParam(name = "estado", required = false) String estado,
             @RequestParam(name = "busqueda", required = false) String busqueda,
             @RequestParam(name = "orden", required = false) String orden) {
+        logger.info("Listando reportes. estado={}, busqueda={}, orden={}", estado, busqueda, orden);
+
         List<String> estados = parsearEstados(estado);
 
         ResponseEntity<?> error = validarEstados(estados);
         if (error != null) {
+            logger.warn("Estados inválidos solicitados: {}", estados);
             return error;
         }
 
         ResponseEntity<?> errorOrden = validarOrden(orden);
         if (errorOrden != null) {
+            logger.warn("Orden inválido solicitado: {}", orden);
             return errorOrden;
         }
 
@@ -83,15 +82,10 @@ public class ReporteController {
     }
 
     public ResponseEntity<List<Reporte>> obtenerReportes() {
+        logger.info("Listando todos los reportes visibles");
         return ResponseEntity.ok(soloVisibles(reporteRepository.findAll()));
     }
 
-    /**
-     * HU-19: los reportes rechazados por un voluntario no se muestran a otros usuarios.
-     * Se aplica a todos los caminos del listado, incluyendo busqueda y orden de HU-24,
-     * para que un rechazo no se esquive filtrando por otra via. Su dueno sigue
-     * viendolos en /usuario/{idUsuario} para conocer el motivo.
-     */
     private static List<Reporte> soloVisibles(List<Reporte> reportes) {
         if (reportes == null) {
             return List.of();
@@ -159,24 +153,33 @@ public class ReporteController {
 
     @GetMapping("/usuario/{idUsuario}")
     public ResponseEntity<List<Reporte>> obtenerReportesPorUsuario(@PathVariable Long idUsuario) {
+        logger.info("Listando reportes del usuario ID: {}", idUsuario);
         return ResponseEntity.ok(reporteRepository.findByIdUsuario(idUsuario));
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<Reporte> obtenerReportePorId(@PathVariable Long id) {
+        logger.info("Consultando reporte ID: {}", id);
         return reporteRepository.findById(id)
                 .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElseGet(() -> {
+                    logger.warn("Reporte ID: {} no encontrado", id);
+                    return ResponseEntity.notFound().build();
+                });
     }
 
     @PostMapping
     public ResponseEntity<Reporte> crearReporte(@Valid @RequestBody Reporte reporte) {
+        logger.info("Iniciando creación de reporte. Usuario ID: {}, tipo: {}",
+                reporte.getIdUsuario(), reporte.getTipoCaso());
         Reporte guardado = reporteRepository.save(reporte);
+        logger.info("Reporte creado correctamente con ID: {}", guardado.getIdReporte());
         return ResponseEntity.status(HttpStatus.CREATED).body(guardado);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Reporte> actualizarReporte(@PathVariable Long id, @Valid @RequestBody Reporte datosReporte) {
+        logger.info("Actualizando reporte ID: {}", id);
         return reporteRepository.findById(id)
                 .map(reporte -> {
                     reporte.setIdUsuario(datosReporte.getIdUsuario());
@@ -186,40 +189,43 @@ public class ReporteController {
                     reporte.setFotoUrl(datosReporte.getFotoUrl());
                     reporte.setLatitud(datosReporte.getLatitud());
                     reporte.setLongitud(datosReporte.getLongitud());
-                    return ResponseEntity.ok(reporteRepository.save(reporte));
+                    Reporte guardado = reporteRepository.save(reporte);
+                    logger.info("Reporte ID: {} actualizado correctamente", id);
+                    return ResponseEntity.ok(guardado);
                 })
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElseGet(() -> {
+                    logger.warn("Reporte ID: {} no encontrado para actualizar", id);
+                    return ResponseEntity.notFound().build();
+                });
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarReporte(@PathVariable Long id) {
+        logger.info("Solicitud de eliminación del reporte ID: {}", id);
         if (!reporteRepository.existsById(id)) {
+            logger.warn("Reporte ID: {} no encontrado para eliminar", id);
             return ResponseEntity.notFound().build();
         }
         reporteRepository.deleteById(id);
+        logger.info("Reporte ID: {} eliminado correctamente", id);
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * HU-24: cambiar el estado sin reenviar el reporte entero. El panel lo usa para
-     * la accion administrativa dedicada y asi no depende de que el resto del caso
-     * siga igual que cuando se abrio la pantalla.
-     *
-     * A diferencia del PUT, aqui el estado no puede saltar de un salto a otro: un
-     * reporte no pasa de PENDIENTE a RESUELTO sin haber pasado por EN_PROCESO. Es lo
-     * que mantiene coherente la informacion que ve la comunidad.
-     */
     @PatchMapping("/{id}/estado")
     public ResponseEntity<?> cambiarEstado(@PathVariable Long id,
                                            @Valid @RequestBody ReporteEstadoDTO datos) {
+        logger.info("Cambiando estado del reporte ID: {} a {}", id, datos.estado());
+
         Reporte reporte = reporteRepository.findById(id).orElse(null);
         if (reporte == null) {
+            logger.warn("Reporte ID: {} no encontrado para cambio de estado", id);
             return ResponseEntity.notFound().build();
         }
 
         String destino = datos.estado().trim().toUpperCase();
 
         if (!ESTADOS_PERMITIDOS.contains(destino)) {
+            logger.warn("Estado inválido solicitado: {}", datos.estado());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ApiError(HttpStatus.BAD_REQUEST.value(),
                             "estado invalido: " + datos.estado() + ". Permitidos: "
@@ -228,6 +234,7 @@ public class ReporteController {
         }
 
         if (destino.equals(reporte.getEstado())) {
+            logger.warn("El reporte ID: {} ya está en estado {}", id, destino);
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(new ApiError(HttpStatus.CONFLICT.value(),
                             "el reporte ya se encuentra en " + destino,
@@ -236,6 +243,8 @@ public class ReporteController {
 
         Set<String> permitidos = transicionesPermitidas(reporte.getEstado());
         if (!permitidos.contains(destino)) {
+            logger.warn("Transición no permitida para reporte ID: {} de {} a {}",
+                    id, reporte.getEstado(), destino);
             return ResponseEntity.status(HttpStatus.CONFLICT)
                     .body(new ApiError(HttpStatus.CONFLICT.value(),
                             "no se puede pasar de " + reporte.getEstado() + " a " + destino
@@ -245,13 +254,11 @@ public class ReporteController {
         }
 
         reporte.setEstado(destino);
-        return ResponseEntity.ok(reporteRepository.save(reporte));
+        Reporte guardado = reporteRepository.save(reporte);
+        logger.info("Estado del reporte ID: {} actualizado a {}", id, destino);
+        return ResponseEntity.ok(guardado);
     }
 
-    /**
-     * Un caso siempre se puede reabrir y nunca se queda trabado: si el animal sigue
-     * en la calle, RESUELTO y CANCELADO vuelven a PENDIENTE.
-     */
     private Set<String> transicionesPermitidas(String estadoActual) {
         return switch (estadoActual) {
             case "PENDIENTE" -> Set.of("EN_PROCESO", "CANCELADO");
