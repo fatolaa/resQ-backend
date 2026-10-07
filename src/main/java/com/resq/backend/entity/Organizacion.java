@@ -40,6 +40,12 @@ public class Organizacion {
     @Column(name = "descripcion", length = 500)
     private String descripcion;
 
+    @Column(name = "horarios", length = 500)
+    private String horarios;
+
+    @Column(name = "zonas_cobertura", length = 500)
+    private String zonasCobertura;
+
     // Ruta relativa del logo (GET /api/organizaciones/logos/{nombre}); null si no subió uno.
     @Column(name = "logo_url", length = 300)
     private String logoUrl;
@@ -134,6 +140,22 @@ public class Organizacion {
 
     public void setDescripcion(String descripcion) {
         this.descripcion = descripcion;
+    }
+
+    public String getHorarios() {
+        return horarios;
+    }
+
+    public void setHorarios(String horarios) {
+        this.horarios = horarios;
+    }
+
+    public String getZonasCobertura() {
+        return zonasCobertura;
+    }
+
+    public void setZonasCobertura(String zonasCobertura) {
+        this.zonasCobertura = zonasCobertura;
     }
 
     public String getLogoUrl() {
