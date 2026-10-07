@@ -11,6 +11,8 @@ public interface OrganizacionRepository extends JpaRepository<Organizacion, Long
 
     Optional<Organizacion> findByIdRepresentante(Long idRepresentante);
 
+    Optional<Organizacion> findByEmailIgnoreCase(String email);
+
     boolean existsByIdRepresentante(Long idRepresentante);
 
     boolean existsByEmailIgnoreCase(String email);
