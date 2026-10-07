@@ -76,6 +76,8 @@ public class OrganizacionService {
         organizacion.setTelefono(datos.telefono());
         organizacion.setEmail(datos.email());
         organizacion.setDescripcion(datos.descripcion());
+        organizacion.setHorarios(datos.horarios());
+        organizacion.setZonasCobertura(datos.zonasCobertura());
         organizacion.setLogoUrl(nombreLogo == null ? null : RUTA_FOTOS + nombreLogo);
         organizacion.setEstadoVerificacion(EstadoVerificacion.PENDIENTE);
 
@@ -94,6 +96,45 @@ public class OrganizacionService {
     }
 
     /**
+     * HU-28: edita los datos de la organización conservando representante, estado de
+     * verificación y fecha de registro. El logo se reemplaza si se sube uno, se quita
+     * con quitarLogo, o se deja igual si no viene ninguna de las dos cosas.
+     */
+    public Organizacion actualizar(Long idOrganizacion, OrganizacionRequestDTO solicitud,
+                                   MultipartFile logo, boolean quitarLogo) {
+        OrganizacionRequestDTO datos = normalizar(solicitud);
+        validar(datos);
+
+        Organizacion organizacion = organizacionRepository.findById(idOrganizacion)
+                .orElseThrow(() -> new OrganizacionException(HttpStatus.NOT_FOUND, "La organización no existe",
+                        Map.of("idOrganizacion", "La organización no existe")));
+
+        if (!organizacion.getIdRepresentante().equals(datos.idRepresentante())) {
+            throw new OrganizacionException(HttpStatus.FORBIDDEN, "Solo puedes editar tu propia organización",
+                    Map.of("idRepresentante", "Solo el representante puede editar su organización"));
+        }
+
+        Optional<Organizacion> conEmail = organizacionRepository.findByEmailIgnoreCase(datos.email());
+        if (conEmail.isPresent() && !conEmail.get().getIdOrganizacion().equals(idOrganizacion)) {
+            throw new OrganizacionException(HttpStatus.CONFLICT, "Ese email ya está registrado",
+                    Map.of("email", "Ya existe una organización registrada con este email"));
+        }
+
+        aplicarLogo(organizacion, logo, quitarLogo);
+
+        organizacion.setNombre(datos.nombre());
+        organizacion.setTipo(datos.tipo());
+        organizacion.setDireccion(datos.direccion());
+        organizacion.setTelefono(datos.telefono());
+        organizacion.setEmail(datos.email());
+        organizacion.setDescripcion(datos.descripcion());
+        organizacion.setHorarios(datos.horarios());
+        organizacion.setZonasCobertura(datos.zonasCobertura());
+
+        return organizacionRepository.save(organizacion);
+    }
+
+    /**
      * Regla reutilizable: solo el representante de una organización VERIFICADA puede
      * gestionar casos. Cualquier funcionalidad de organizaciones que actúe sobre casos
      * debe consultarla antes de permitir la acción.
@@ -109,6 +150,32 @@ public class OrganizacionService {
             return fotoStorage.guardar(logo);
         } catch (FotoInvalidaException e) {
             throw new OrganizacionException(e.getStatus(), e.getMessage(), Map.of("logo", e.getMessage()));
+        }
+    }
+
+    private void aplicarLogo(Organizacion organizacion, MultipartFile logo, boolean quitarLogo) {
+        if (logo != null && !logo.isEmpty()) {
+            // El nuevo logo se valida y guarda ANTES de borrar el anterior: si es
+            // inválido, la edición falla y la organización queda como estaba.
+            String nombreNuevo = guardarLogo(logo);
+            eliminarLogoActual(organizacion);
+            organizacion.setLogoUrl(RUTA_FOTOS + nombreNuevo);
+            return;
+        }
+        if (quitarLogo) {
+            eliminarLogoActual(organizacion);
+            organizacion.setLogoUrl(null);
+        }
+    }
+
+    private void eliminarLogoActual(Organizacion organizacion) {
+        String logoUrl = organizacion.getLogoUrl();
+        if (logoUrl == null || !logoUrl.startsWith(RUTA_FOTOS)) {
+            return;
+        }
+        String nombre = logoUrl.substring(RUTA_FOTOS.length());
+        if (!nombre.isBlank()) {
+            fotoStorage.eliminar(nombre);
         }
     }
 
@@ -133,7 +200,9 @@ public class OrganizacionService {
                 limpiar(d.direccion()),
                 limpiar(d.telefono()),
                 limpiar(d.email()),
-                limpiar(d.descripcion()));
+                limpiar(d.descripcion()),
+                limpiar(d.horarios()),
+                limpiar(d.zonasCobertura()));
     }
 
     /** Recorta espacios; un texto vacío queda como null para que @NotBlank lo detecte. */
