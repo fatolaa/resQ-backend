@@ -26,6 +26,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -64,7 +65,7 @@ class OrganizacionControllerTest {
 
     private ResponseEntity<?> registrar(Long idRepresentante, MultipartFile logo) {
         return controller.registrar(idRepresentante, "Refugio Patitas", "REFUGIO", "Calle 1", "70123456",
-                "a@patitas.org", "desc", logo);
+                "a@patitas.org", "desc", null, null, logo);
     }
 
     private OrganizacionRequestDTO datosEnviadosAlServicio(MultipartFile logoEsperado) {
@@ -200,5 +201,72 @@ class OrganizacionControllerTest {
 
         autenticarComo("1", "ADMIN");
         assertThat(controller.obtenerDeRepresentante(7L).getStatusCode()).isEqualTo(HttpStatus.OK);
+    }
+
+    // ---------------------------------------------------------------- PUT edición
+
+    private ResponseEntity<?> editar(Long idRepresentante, MultipartFile logo, boolean quitarLogo) {
+        return controller.actualizar(1L, idRepresentante, "Refugio Patitas", "REFUGIO", "Calle 1", "70123456",
+                "a@patitas.org", "desc", "Lun-Sáb 9-18", "Cochabamba, Quillacollo", logo, quitarLogo);
+    }
+
+    @Test
+    @DisplayName("edita la ficha y pasa los datos y el logo al servicio")
+    void editaYPasaLosDatosAlServicio() {
+        Organizacion actualizada = organizacion(EstadoVerificacion.PENDIENTE);
+        when(servicio.actualizar(any(), any(), any(), anyBoolean())).thenReturn(actualizada);
+
+        ResponseEntity<?> respuesta = editar(7L, null, false);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(respuesta.getBody()).isSameAs(actualizada);
+
+        ArgumentCaptor<OrganizacionRequestDTO> captor = ArgumentCaptor.forClass(OrganizacionRequestDTO.class);
+        ArgumentCaptor<Boolean> quitarLogo = ArgumentCaptor.forClass(Boolean.class);
+        verify(servicio).actualizar(org.mockito.ArgumentMatchers.eq(1L), captor.capture(), any(), quitarLogo.capture());
+        assertThat(captor.getValue().idRepresentante()).isEqualTo(7L);
+        assertThat(captor.getValue().horarios()).isEqualTo("Lun-Sáb 9-18");
+        assertThat(captor.getValue().zonasCobertura()).isEqualTo("Cochabamba, Quillacollo");
+        assertThat(quitarLogo.getValue()).isFalse();
+    }
+
+    @Test
+    @DisplayName("pasa quitarLogo=true cuando el cliente pide quitar el logo")
+    void pasaQuitarLogoAlServicio() {
+        MultipartFile logo = mock(MultipartFile.class);
+        when(servicio.actualizar(any(), any(), any(), anyBoolean())).thenReturn(organizacion("X"));
+
+        ResponseEntity<?> respuesta = controller.actualizar(1L, 7L, "Refugio Patitas", "REFUGIO", "Calle 1",
+                "70123456", "a@patitas.org", "desc", null, null, logo, true);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        ArgumentCaptor<Boolean> quitarLogo = ArgumentCaptor.forClass(Boolean.class);
+        verify(servicio).actualizar(any(), any(), org.mockito.ArgumentMatchers.eq(logo), quitarLogo.capture());
+        assertThat(quitarLogo.getValue()).isTrue();
+    }
+
+    @Test
+    @DisplayName("con token no se puede editar la ficha de otro representante (403)")
+    void noSeEditaLaOrganizacionDeOtro() {
+        autenticarComo("8", "USUARIO");
+
+        ResponseEntity<?> respuesta = editar(7L, null, false);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
+        verify(servicio, never()).actualizar(any(), any(), any(), anyBoolean());
+    }
+
+    @Test
+    @DisplayName("sin token usa el idRepresentante del cliente para la edición")
+    void sinTokenUsaElIdDelClienteParaEditar() {
+        when(servicio.actualizar(any(), any(), any(), anyBoolean())).thenReturn(organizacion("X"));
+
+        editar(7L, null, false);
+
+        ArgumentCaptor<OrganizacionRequestDTO> captor = ArgumentCaptor.forClass(OrganizacionRequestDTO.class);
+        verify(servicio).actualizar(org.mockito.ArgumentMatchers.eq(1L), captor.capture(), any(), anyBoolean());
+        assertThat(captor.getValue().idRepresentante()).isEqualTo(7L);
+        assertThat(captor.getValue().horarios()).isEqualTo("Lun-Sáb 9-18");
+        assertThat(captor.getValue().zonasCobertura()).isEqualTo("Cochabamba, Quillacollo");
     }
 }
