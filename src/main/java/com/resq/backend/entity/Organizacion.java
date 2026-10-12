@@ -22,7 +22,7 @@ public class Organizacion {
     @Column(name = "id_usuario", nullable = false, unique = true)
     private Long idRepresentante;
 
-    @Column(name = "nombre", nullable = false, length = 150)
+    @Column(name = "nombre_organizacion", nullable = false, length = 150)
     private String nombre;
 
     @Column(name = "tipo", nullable = false, length = 40)
