@@ -8,6 +8,8 @@ import com.resq.backend.entity.Reporte;
 import com.resq.backend.repository.NotificacionRepository;
 import com.resq.backend.repository.ReporteRepository;
 import com.resq.backend.repository.UsuarioRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -19,22 +21,11 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * HU-19: un voluntario (o admin) valida los casos reportados.
- *
- * - GET  /api/reportes/revision/pendientes?idRevisor=  cola de casos por revisar
- * - POST /api/reportes/revision/{idReporte}/decision   aprobar o rechazar con nota
- *
- * Al decidir se notifica al dueño del reporte. Los reportes rechazados dejan de
- * aparecer en el listado público (ver ReporteController).
- *
- * Nota: desde HU-23 el proyecto tiene autenticación por token, asi que el rol del
- * revisor se exige en SecurityConfig y ademas se contrasta con el id del token en
- * puedeRevisar, para que el idRevisor de la peticion no sea el que manda.
- */
 @RestController
 @RequestMapping("/api/reportes/revision")
 public class RevisionReporteController {
+
+    private static final Logger logger = LoggerFactory.getLogger(RevisionReporteController.class);
 
     static final int NOTA_MAXIMA = 500;
 
@@ -52,7 +43,9 @@ public class RevisionReporteController {
 
     @GetMapping("/pendientes")
     public ResponseEntity<?> listarPendientes(@RequestParam("idRevisor") Long idRevisor) {
+        logger.info("Listando reportes pendientes de revisión. Revisor ID: {}", idRevisor);
         if (!puedeRevisar(idRevisor)) {
+            logger.warn("Acceso denegado a revisión. Revisor ID: {}", idRevisor);
             return sinPermiso();
         }
         return ResponseEntity.ok(reporteRepository.findPendientesDeRevision());
@@ -61,7 +54,10 @@ public class RevisionReporteController {
     @PostMapping("/{idReporte}/decision")
     @Transactional
     public ResponseEntity<?> decidir(@PathVariable Long idReporte, @RequestBody DecisionRevisionDTO decision) {
+        logger.info("Revisando reporte ID: {}. Decisión: {}", idReporte, decision.decision());
+
         if (!puedeRevisar(decision.idRevisor())) {
+            logger.warn("Acceso denegado para revisar. Revisor ID: {}", decision.idRevisor());
             return sinPermiso();
         }
 
@@ -69,11 +65,13 @@ public class RevisionReporteController {
         boolean aprobar = accion.equals("APROBAR");
         boolean rechazar = accion.equals("RECHAZAR");
         if (!aprobar && !rechazar) {
+            logger.warn("Decisión inválida: {}", decision.decision());
             return error(HttpStatus.BAD_REQUEST, "decision debe ser APROBAR o RECHAZAR", "decision");
         }
 
         String nota = decision.nota() == null ? "" : decision.nota().trim();
         if (rechazar && nota.isEmpty()) {
+            logger.warn("Rechazo sin nota para el reporte ID: {}", idReporte);
             return error(HttpStatus.BAD_REQUEST, "Debes indicar el motivo del rechazo", "nota");
         }
         if (nota.length() > NOTA_MAXIMA) {
@@ -83,12 +81,14 @@ public class RevisionReporteController {
 
         Optional<Reporte> encontrado = reporteRepository.findById(idReporte);
         if (encontrado.isEmpty()) {
+            logger.warn("Reporte ID: {} no encontrado para revisión", idReporte);
             return error(HttpStatus.NOT_FOUND, "Reporte no encontrado", "idReporte");
         }
 
         Reporte reporte = encontrado.get();
         String actual = reporte.getEstadoRevision();
         if (actual != null && !EstadoRevision.PENDIENTE.equals(actual)) {
+            logger.warn("Reporte ID: {} ya fue revisado. Estado actual: {}", idReporte, actual);
             return error(HttpStatus.CONFLICT, "La solicitud ya fue revisada: " + actual, "estadoRevision");
         }
 
@@ -99,6 +99,9 @@ public class RevisionReporteController {
         reporteRepository.save(reporte);
 
         notificacionRepository.save(crearNotificacion(reporte, aprobar, nota));
+
+        logger.info("Reporte ID: {} {} por revisor ID: {}", idReporte,
+                aprobar ? "APROBADO" : "RECHAZADO", decision.idRevisor());
 
         return ResponseEntity.ok(reporte);
     }
@@ -123,10 +126,6 @@ public class RevisionReporteController {
             return false;
         }
 
-        // Con JWT el token ya dice quien es el revisor. Aceptar un idRevisor
-        // distinto al del token seria un IDOR: un voluntario podria decidir en nombre
-        // de otra cuenta que si tiene el rol. Cuando todavia no hay sesion (llamadas
-        // directas sin token) se conserva la validacion por base de datos.
         Long idAutenticado = idUsuarioAutenticado();
         if (idAutenticado != null && !idAutenticado.equals(idUsuario)) {
             return false;
@@ -138,7 +137,6 @@ public class RevisionReporteController {
                 .orElse(false);
     }
 
-    /** El id del usuario autenticado, o null si la peticion no tiene sesion. */
     private Long idUsuarioAutenticado() {
         Authentication autenticacion = SecurityContextHolder.getContext().getAuthentication();
         if (autenticacion == null || autenticacion.getPrincipal() == null) {

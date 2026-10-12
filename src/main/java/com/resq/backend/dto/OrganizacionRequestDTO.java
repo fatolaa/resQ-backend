@@ -39,5 +39,11 @@ public record OrganizacionRequestDTO(
         String email,
 
         @Size(max = 500, message = "La descripción no puede superar los 500 caracteres")
-        String descripcion) {
+        String descripcion,
+
+        @Size(max = 500, message = "Los horarios no pueden superar los 500 caracteres")
+        String horarios,
+
+        @Size(max = 500, message = "Las zonas de cobertura no pueden superar los 500 caracteres")
+        String zonasCobertura) {
 }

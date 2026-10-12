@@ -26,11 +26,11 @@ class OrganizacionValidacionTest {
     }
 
     private static OrganizacionRequestDTO conEmail(String email) {
-        return new OrganizacionRequestDTO(1L, "Refugio", "REFUGIO", "Calle 1", "70123456", email, null);
+        return new OrganizacionRequestDTO(1L, "Refugio", "REFUGIO", "Calle 1", "70123456", email, null, null, null);
     }
 
     private static OrganizacionRequestDTO conTelefono(String telefono) {
-        return new OrganizacionRequestDTO(1L, "Refugio", "REFUGIO", "Calle 1", telefono, "a@b.com", null);
+        return new OrganizacionRequestDTO(1L, "Refugio", "REFUGIO", "Calle 1", telefono, "a@b.com", null, null, null);
     }
 
     @ParameterizedTest

@@ -70,7 +70,7 @@ class OrganizacionServiceTest {
     private static OrganizacionRequestDTO datosValidos() {
         return new OrganizacionRequestDTO(REPRESENTANTE, "Refugio Patitas", "REFUGIO",
                 "Av. América 123, Cochabamba", "+591 70123456", "contacto@patitas.org",
-                "Refugio de perros y gatos rescatados");
+                "Refugio de perros y gatos rescatados", null, null);
     }
 
     // ---------------------------------------------------------------- registro correcto
@@ -99,7 +99,7 @@ class OrganizacionServiceTest {
         for (String tipo : new String[]{"REFUGIO", "VETERINARIA", "RESCATISTA_INDEPENDIENTE"}) {
             OrganizacionRequestDTO d = datosValidos();
             OrganizacionRequestDTO conTipo = new OrganizacionRequestDTO(d.idRepresentante(), d.nombre(), tipo,
-                    d.direccion(), d.telefono(), d.email(), d.descripcion());
+                    d.direccion(), d.telefono(), d.email(), d.descripcion(), null, null);
 
             assertThat(servicio.registrar(conTipo, null).organizacion().getTipo()).isEqualTo(tipo);
         }
@@ -109,7 +109,7 @@ class OrganizacionServiceTest {
     @DisplayName("normaliza espacios y mayúsculas del tipo, y la descripción es opcional")
     void normalizaYDescripcionOpcional() {
         OrganizacionRequestDTO d = new OrganizacionRequestDTO(REPRESENTANTE, "  Vet Central  ", " veterinaria ",
-                "  Calle 1  ", " 70123456 ", "  vet@central.com  ", "   ");
+                "  Calle 1  ", " 70123456 ", "  vet@central.com  ", "   ", "  ", "  ");
 
         Organizacion organizacion = servicio.registrar(d, null).organizacion();
 
@@ -165,7 +165,7 @@ class OrganizacionServiceTest {
     @Test
     @DisplayName("los campos obligatorios faltantes se reportan todos juntos (400)")
     void reportaTodosLosCamposObligatorios() {
-        OrganizacionRequestDTO vacio = new OrganizacionRequestDTO(REPRESENTANTE, null, null, "  ", "", null, null);
+        OrganizacionRequestDTO vacio = new OrganizacionRequestDTO(REPRESENTANTE, null, null, "  ", "", null, null, null, null);
 
         assertThatThrownBy(() -> servicio.registrar(vacio, null))
                 .isInstanceOfSatisfying(OrganizacionException.class, e -> {
@@ -180,7 +180,7 @@ class OrganizacionServiceTest {
     void exigeRepresentante() {
         OrganizacionRequestDTO d = datosValidos();
         OrganizacionRequestDTO sinRepresentante = new OrganizacionRequestDTO(null, d.nombre(), d.tipo(),
-                d.direccion(), d.telefono(), d.email(), d.descripcion());
+                d.direccion(), d.telefono(), d.email(), d.descripcion(), null, null);
 
         assertThatThrownBy(() -> servicio.registrar(sinRepresentante, null))
                 .isInstanceOfSatisfying(OrganizacionException.class,
@@ -192,7 +192,7 @@ class OrganizacionServiceTest {
     void rechazaEmailInvalido() {
         OrganizacionRequestDTO d = datosValidos();
         OrganizacionRequestDTO conEmail = new OrganizacionRequestDTO(d.idRepresentante(), d.nombre(), d.tipo(),
-                d.direccion(), d.telefono(), "esto-no-es-un-email", d.descripcion());
+                d.direccion(), d.telefono(), "esto-no-es-un-email", d.descripcion(), null, null);
 
         assertThatThrownBy(() -> servicio.registrar(conEmail, null))
                 .isInstanceOfSatisfying(OrganizacionException.class,
@@ -204,7 +204,7 @@ class OrganizacionServiceTest {
     void rechazaTelefonoInvalido() {
         OrganizacionRequestDTO d = datosValidos();
         OrganizacionRequestDTO conTelefono = new OrganizacionRequestDTO(d.idRepresentante(), d.nombre(), d.tipo(),
-                d.direccion(), "abc123", d.email(), d.descripcion());
+                d.direccion(), "abc123", d.email(), d.descripcion(), null, null);
 
         assertThatThrownBy(() -> servicio.registrar(conTelefono, null))
                 .isInstanceOfSatisfying(OrganizacionException.class,
@@ -216,7 +216,7 @@ class OrganizacionServiceTest {
     void rechazaTipoDesconocido() {
         OrganizacionRequestDTO d = datosValidos();
         OrganizacionRequestDTO conTipo = new OrganizacionRequestDTO(d.idRepresentante(), d.nombre(), "TIENDA",
-                d.direccion(), d.telefono(), d.email(), d.descripcion());
+                d.direccion(), d.telefono(), d.email(), d.descripcion(), null, null);
 
         assertThatThrownBy(() -> servicio.registrar(conTipo, null))
                 .isInstanceOfSatisfying(OrganizacionException.class,
@@ -228,7 +228,7 @@ class OrganizacionServiceTest {
     void rechazaDescripcionLarga() {
         OrganizacionRequestDTO d = datosValidos();
         OrganizacionRequestDTO conDescripcion = new OrganizacionRequestDTO(d.idRepresentante(), d.nombre(), d.tipo(),
-                d.direccion(), d.telefono(), d.email(), "x".repeat(501));
+                d.direccion(), d.telefono(), d.email(), "x".repeat(501), null, null);
 
         assertThatThrownBy(() -> servicio.registrar(conDescripcion, null))
                 .isInstanceOfSatisfying(OrganizacionException.class,
@@ -300,6 +300,173 @@ class OrganizacionServiceTest {
         assertThat(resultado.confirmacionEnviada()).isFalse();
         assertThat(resultado.organizacion().getIdOrganizacion()).isEqualTo(1L);
         verify(organizacionRepository).save(any(Organizacion.class));
+    }
+
+    // ---------------------------------------------------------------- edición (HU-28)
+
+    private static final String LOGO_VIEJO = "550e8400-e29b-41d4-a716-446655440000.png";
+
+    private Organizacion organizacionExistente() throws Exception {
+        Organizacion o = new Organizacion();
+        o.setIdOrganizacion(1L);
+        o.setIdRepresentante(REPRESENTANTE);
+        o.setNombre("Patitas Viejas");
+        o.setTipo("REFUGIO");
+        o.setDireccion("Calle vieja 1");
+        o.setTelefono("70123456");
+        o.setEmail("viejo@patitas.org");
+        o.setDescripcion("Descripción anterior");
+        o.setHorarios("Lun a Vie 8-17");
+        o.setZonasCobertura("Cochabamba");
+        o.setLogoUrl(null);
+        o.setEstadoVerificacion(EstadoVerificacion.VERIFICADA);
+        when(organizacionRepository.findById(1L)).thenReturn(Optional.of(o));
+        when(organizacionRepository.findByEmailIgnoreCase(anyString())).thenReturn(Optional.empty());
+        return o;
+    }
+
+    private Organizacion conLogoViejo() throws Exception {
+        Files.write(carpetaLogos.resolve(LOGO_VIEJO), PNG);
+        Organizacion o = organizacionExistente();
+        o.setLogoUrl("/api/reportes/fotos/" + LOGO_VIEJO);
+        return o;
+    }
+
+    @Test
+    @DisplayName("edita los datos y conserva representante, estado y fecha de registro")
+    void editaLosDatosConservandoLoQueNoSeEdita() throws Exception {
+        Organizacion existente = organizacionExistente();
+        existente.setFechaRegistro(java.time.LocalDateTime.of(2024, 1, 1, 10, 0));
+
+        Organizacion actualizada = servicio.actualizar(1L, datosValidos(), null, false);
+
+        assertThat(actualizada.getNombre()).isEqualTo("Refugio Patitas");
+        assertThat(actualizada.getDireccion()).isEqualTo("Av. América 123, Cochabamba");
+        assertThat(actualizada.getTelefono()).isEqualTo("+591 70123456");
+        assertThat(actualizada.getEmail()).isEqualTo("contacto@patitas.org");
+        assertThat(actualizada.getTipo()).isEqualTo("REFUGIO");
+        assertThat(actualizada.getIdRepresentante()).isEqualTo(REPRESENTANTE);
+        assertThat(actualizada.getEstadoVerificacion()).isEqualTo(EstadoVerificacion.VERIFICADA);
+        assertThat(actualizada.getFechaRegistro()).isEqualTo(existente.getFechaRegistro());
+        verify(organizacionRepository).save(actualizada);
+    }
+
+    @Test
+    @DisplayName("guarda horarios y zonas de cobertura al editar")
+    void guardaHorariosYZonas() throws Exception {
+        organizacionExistente();
+        OrganizacionRequestDTO d = datosValidos();
+        OrganizacionRequestDTO conExtras = new OrganizacionRequestDTO(d.idRepresentante(), d.nombre(), d.tipo(),
+                d.direccion(), d.telefono(), d.email(), d.descripcion(), "Lun-Sáb 9-18", "Cochabamba, Quillacollo");
+
+        Organizacion actualizada = servicio.actualizar(1L, conExtras, null, false);
+
+        assertThat(actualizada.getHorarios()).isEqualTo("Lun-Sáb 9-18");
+        assertThat(actualizada.getZonasCobertura()).isEqualTo("Cochabamba, Quillacollo");
+    }
+
+    @Test
+    @DisplayName("valida antes de guardar (400) y no toca la organización")
+    void validaAntesDeGuardar() throws Exception {
+        organizacionExistente();
+        OrganizacionRequestDTO d = datosValidos();
+        OrganizacionRequestDTO conEmail = new OrganizacionRequestDTO(d.idRepresentante(), d.nombre(), d.tipo(),
+                d.direccion(), d.telefono(), "email-invalido", d.descripcion(), null, null);
+
+        assertThatThrownBy(() -> servicio.actualizar(1L, conEmail, null, false))
+                .isInstanceOfSatisfying(OrganizacionException.class,
+                        e -> assertThat(e.getErrores()).containsOnlyKeys("email"));
+        verify(organizacionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("responde 404 si la organización no existe")
+    void organizacionInexistente() {
+        when(organizacionRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> servicio.actualizar(1L, datosValidos(), null, false))
+                .isInstanceOfSatisfying(OrganizacionException.class,
+                        e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.NOT_FOUND));
+    }
+
+    @Test
+    @DisplayName("solo el representante puede editar su propia organización (403)")
+    void soloElRepresentanteEdita() throws Exception {
+        Organizacion o = organizacionExistente();
+        o.setIdRepresentante(99L);
+
+        assertThatThrownBy(() -> servicio.actualizar(1L, datosValidos(), null, false))
+                .isInstanceOfSatisfying(OrganizacionException.class,
+                        e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.FORBIDDEN));
+        verify(organizacionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("no permite usar el email de otra organización (409)")
+    void emailDeOtraOrganizacionEsConflicto() throws Exception {
+        organizacionExistente();
+        Organizacion otra = new Organizacion();
+        otra.setIdOrganizacion(2L);
+        when(organizacionRepository.findByEmailIgnoreCase("contacto@patitas.org")).thenReturn(Optional.of(otra));
+
+        assertThatThrownBy(() -> servicio.actualizar(1L, datosValidos(), null, false))
+                .isInstanceOfSatisfying(OrganizacionException.class,
+                        e -> assertThat(e.getStatus()).isEqualTo(HttpStatus.CONFLICT));
+        verify(organizacionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("mantener el propio email no se considera conflicto")
+    void mantieneSuPropioEmail() throws Exception {
+        Organizacion existente = organizacionExistente();
+        when(organizacionRepository.findByEmailIgnoreCase("contacto@patitas.org")).thenReturn(Optional.of(existente));
+
+        Organizacion actualizada = servicio.actualizar(1L, datosValidos(), null, false);
+
+        assertThat(actualizada.getEmail()).isEqualTo("contacto@patitas.org");
+        verify(organizacionRepository).save(any());
+    }
+
+    @Test
+    @DisplayName("quitarLogo=true borra el archivo y deja el logo en null")
+    void quitarLogoBorraElArchivo() throws Exception {
+        Organizacion existente = conLogoViejo();
+
+        Organizacion actualizada = servicio.actualizar(1L, datosValidos(), null, true);
+
+        assertThat(actualizada.getLogoUrl()).isNull();
+        assertThat(existente.getLogoUrl()).isNull();
+        try (var archivos = Files.list(carpetaLogos)) {
+            assertThat(archivos.count()).isEqualTo(0);
+        }
+    }
+
+    @Test
+    @DisplayName("subir un logo nuevo reemplaza el anterior y borra el archivo viejo")
+    void reemplazaLogoYBorraElViejo() throws Exception {
+        conLogoViejo();
+        MockMultipartFile nuevo = new MockMultipartFile("logo", "nuevo.png", "image/png", PNG);
+
+        Organizacion actualizada = servicio.actualizar(1L, datosValidos(), nuevo, false);
+
+        assertThat(actualizada.getLogoUrl()).startsWith("/api/reportes/fotos/").endsWith(".png");
+        assertThat(actualizada.getLogoUrl()).doesNotContain(LOGO_VIEJO);
+        try (var archivos = Files.list(carpetaLogos)) {
+            assertThat(archivos.count()).isEqualTo(1);
+        }
+    }
+
+    @Test
+    @DisplayName("sin logo nuevo ni quitarLogo, el logo actual se conserva")
+    void conservaElLogoActual() throws Exception {
+        conLogoViejo();
+
+        Organizacion actualizada = servicio.actualizar(1L, datosValidos(), null, false);
+
+        assertThat(actualizada.getLogoUrl()).isEqualTo("/api/reportes/fotos/" + LOGO_VIEJO);
+        try (var archivos = Files.list(carpetaLogos)) {
+            assertThat(archivos.count()).isEqualTo(1);
+        }
     }
 
     // ---------------------------------------------------------------- no gestiona casos hasta verificar

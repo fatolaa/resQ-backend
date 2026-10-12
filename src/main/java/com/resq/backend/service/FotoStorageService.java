@@ -112,6 +112,23 @@ public class FotoStorageService {
         return Optional.of(new FotoAlmacenada(new PathResource(ruta), contentType));
     }
 
+    /** Borra la foto guardada si existe. Nunca toca archivos fuera del directorio de fotos. */
+    public void eliminar(String nombre) {
+        if (nombre == null || !NOMBRE_VALIDO.matcher(nombre).matches()) {
+            return;
+        }
+        Path ruta = directorio.resolve(nombre).normalize();
+        if (!ruta.startsWith(directorio)) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(ruta);
+        } catch (IOException ignorado) {
+            // La falta de borrado no debe hacer fallar una edición: si el archivo
+            // queda huérfano, es un problema menor frente a perder el cambio.
+        }
+    }
+
     static Optional<Formato> detectarFormato(byte[] b) {
         if (b.length >= 3 && (b[0] & 0xFF) == 0xFF && (b[1] & 0xFF) == 0xD8 && (b[2] & 0xFF) == 0xFF) {
             return Optional.of(Formato.JPEG);
