@@ -108,6 +108,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/organizaciones", "/api/organizaciones/**")
                         .authenticated()
 
+                        // HU-30: registrar y consultar adopciones exige sesión; el servicio
+                        // limita la consulta a la organización y a quien reportó el caso.
+                        .requestMatchers("/api/adopciones", "/api/adopciones/**").authenticated()
+
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
