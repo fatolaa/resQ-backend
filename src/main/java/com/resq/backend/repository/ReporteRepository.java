@@ -40,4 +40,21 @@ public interface ReporteRepository extends JpaRepository<Reporte, Long> {
     @Query("SELECT r FROM Reporte r WHERE r.estadoRevision IS NULL "
             + "OR r.estadoRevision = 'PENDIENTE_REVISION' ORDER BY r.fechaCreacion ASC")
     List<Reporte> findPendientesDeRevision();
+
+    // ============================================================
+    // HU-21: casos (reportes) asignados a una organización
+    // ============================================================
+
+    /** Casos que una organización ya tomó, para su panel de "mis casos". */
+    List<Reporte> findByIdOrganizacion(Long idOrganizacion);
+
+    List<Reporte> findByIdOrganizacion(Long idOrganizacion, Sort sort);
+
+    /** Igual, pero filtrado a ciertos estados (filtro por estado del panel). */
+    List<Reporte> findByIdOrganizacionAndEstadoIn(Long idOrganizacion, List<String> estados);
+
+    List<Reporte> findByIdOrganizacionAndEstadoIn(Long idOrganizacion, List<String> estados, Sort sort);
+
+    /** Casos que ninguna organización ha tomado todavía (para "Aceptar caso"). */
+    List<Reporte> findByIdOrganizacionIsNull();
 }

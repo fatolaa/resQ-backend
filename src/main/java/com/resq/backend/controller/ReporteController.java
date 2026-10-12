@@ -2,9 +2,15 @@ package com.resq.backend.controller;
 
 import com.resq.backend.dto.ApiError;
 import com.resq.backend.dto.ReporteEstadoDTO;
+import com.resq.backend.dto.SeguimientoCasoRequestDTO;
 import com.resq.backend.entity.EstadoRevision;
+import com.resq.backend.entity.Organizacion;
 import com.resq.backend.entity.Reporte;
+import com.resq.backend.entity.SeguimientoCaso;
+import com.resq.backend.repository.OrganizacionRepository;
 import com.resq.backend.repository.ReporteRepository;
+import com.resq.backend.repository.SeguimientoCasoRepository;
+import com.resq.backend.security.UsuarioAutenticado;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -31,9 +38,15 @@ public class ReporteController {
     private static final Set<String> ORDENES_PERMITIDOS = Set.of("RECIENTES", "ANTIGUOS");
 
     private final ReporteRepository reporteRepository;
+    private final OrganizacionRepository organizacionRepository; // HU-21
+    private final SeguimientoCasoRepository seguimientoCasoRepository; // HU-21
 
-    public ReporteController(ReporteRepository reporteRepository) {
+    public ReporteController(ReporteRepository reporteRepository,
+                              OrganizacionRepository organizacionRepository,
+                              SeguimientoCasoRepository seguimientoCasoRepository) {
         this.reporteRepository = reporteRepository;
+        this.organizacionRepository = organizacionRepository;
+        this.seguimientoCasoRepository = seguimientoCasoRepository;
     }
 
     public ResponseEntity<?> obtenerReportes(String estado) {
@@ -222,6 +235,19 @@ public class ReporteController {
             return ResponseEntity.notFound().build();
         }
 
+        // HU-21: si el caso ya fue tomado por una organización, solo esa organización
+        // (o un admin) puede cambiarle el estado. No afecta a admin ni a voluntarios
+        // en casos sin organización asignada.
+        if (reporte.getIdOrganizacion() != null
+                && !UsuarioAutenticado.esAdmin()
+                && !puedeVerOrganizacion(reporte.getIdOrganizacion())) {
+            logger.warn("Usuario sin permiso intentó cambiar estado del caso ID: {}", id);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiError(HttpStatus.FORBIDDEN.value(),
+                            "Solo la organización asignada puede editar este caso",
+                            Map.of("idReporte", String.valueOf(id))));
+        }
+
         String destino = datos.estado().trim().toUpperCase();
 
         if (!ESTADOS_PERMITIDOS.contains(destino)) {
@@ -267,5 +293,169 @@ public class ReporteController {
             case "CANCELADO" -> Set.of("PENDIENTE");
             default -> Set.of();
         };
+    }
+
+    // ============================================================
+    // HU-21: gestión de casos por una organización
+    // ============================================================
+
+    /**
+     * true si el usuario autenticado puede ver/gestionar los casos de
+     * idOrganizacion: es admin, o es el representante de esa organización.
+     */
+    private boolean puedeVerOrganizacion(Long idOrganizacion) {
+        if (UsuarioAutenticado.esAdmin()) {
+            return true;
+        }
+        Optional<Long> idActual = UsuarioAutenticado.idActual();
+        if (idActual.isEmpty()) {
+            return false;
+        }
+        return organizacionRepository.findByIdRepresentante(idActual.get())
+                .map(org -> org.getIdOrganizacion().equals(idOrganizacion))
+                .orElse(false);
+    }
+
+    /**
+     * HU-21: casos que ninguna organización ha tomado todavía, para que una
+     * organización verificada pueda elegir cuáles atender.
+     */
+    @GetMapping("/disponibles")
+    public ResponseEntity<List<Reporte>> obtenerDisponibles() {
+        logger.info("Listando casos disponibles (sin organización asignada)");
+        return ResponseEntity.ok(soloVisibles(reporteRepository.findByIdOrganizacionIsNull()));
+    }
+
+    /**
+     * HU-21: panel de "mis casos" de una organización. estados= es opcional,
+     * mismo formato que en GET /api/reportes (coma-separado).
+     */
+    @GetMapping("/organizacion/{idOrganizacion}")
+    public ResponseEntity<?> obtenerPorOrganizacion(
+            @PathVariable Long idOrganizacion,
+            @RequestParam(name = "estados", required = false) String estado,
+            @RequestParam(name = "orden", required = false) String orden) {
+
+        if (!puedeVerOrganizacion(idOrganizacion)) {
+            logger.warn("Usuario sin permiso intentó ver casos de organización ID: {}", idOrganizacion);
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiError(HttpStatus.FORBIDDEN.value(),
+                            "No puedes ver los casos de esta organización",
+                            Map.of("idOrganizacion", String.valueOf(idOrganizacion))));
+        }
+
+        List<String> estados = parsearEstados(estado);
+        ResponseEntity<?> error = validarEstados(estados);
+        if (error != null) {
+            return error;
+        }
+        ResponseEntity<?> errorOrden = validarOrden(orden);
+        if (errorOrden != null) {
+            return errorOrden;
+        }
+
+        Sort sort = toSort(orden);
+        List<Reporte> reportes;
+        if (!estados.isEmpty()) {
+            reportes = sort == null
+                    ? reporteRepository.findByIdOrganizacionAndEstadoIn(idOrganizacion, estados)
+                    : reporteRepository.findByIdOrganizacionAndEstadoIn(idOrganizacion, estados, sort);
+        } else {
+            reportes = sort == null
+                    ? reporteRepository.findByIdOrganizacion(idOrganizacion)
+                    : reporteRepository.findByIdOrganizacion(idOrganizacion, sort);
+        }
+
+        return ResponseEntity.ok(reportes);
+    }
+
+    /**
+     * HU-21: una organización verificada toma un caso disponible.
+     * Solo se puede aceptar un caso que no tenga organización asignada.
+     */
+    @PatchMapping("/{id}/aceptar")
+    public ResponseEntity<?> aceptarCaso(@PathVariable Long id) {
+        Optional<Long> idActual = UsuarioAutenticado.idActual();
+        if (idActual.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiError(HttpStatus.UNAUTHORIZED.value(), "No autenticado", Map.of()));
+        }
+
+        Optional<Organizacion> organizacion = organizacionRepository.findByIdRepresentante(idActual.get());
+        if (organizacion.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiError(HttpStatus.FORBIDDEN.value(),
+                            "Solo una organización puede aceptar casos", Map.of()));
+        }
+        if (!organizacion.get().puedeGestionarCasos()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiError(HttpStatus.FORBIDDEN.value(),
+                            "Tu organización todavía no está verificada", Map.of()));
+        }
+
+        Reporte reporte = reporteRepository.findById(id).orElse(null);
+        if (reporte == null) {
+            logger.warn("Reporte ID: {} no encontrado para aceptar caso", id);
+            return ResponseEntity.notFound().build();
+        }
+        if (reporte.getIdOrganizacion() != null) {
+            return ResponseEntity.status(HttpStatus.CONFLICT)
+                    .body(new ApiError(HttpStatus.CONFLICT.value(),
+                            "Este caso ya fue tomado por otra organización", Map.of("idReporte", String.valueOf(id))));
+        }
+
+        reporte.setIdOrganizacion(organizacion.get().getIdOrganizacion());
+        Reporte guardado = reporteRepository.save(reporte);
+        logger.info("Organización ID: {} aceptó el caso ID: {}", organizacion.get().getIdOrganizacion(), id);
+        return ResponseEntity.ok(guardado);
+    }
+
+    /**
+     * HU-21: historial de seguimiento de un caso (notas + fotos), más reciente primero.
+     */
+    @GetMapping("/{id}/seguimientos")
+    public ResponseEntity<?> obtenerSeguimientos(@PathVariable Long id) {
+        Reporte reporte = reporteRepository.findById(id).orElse(null);
+        if (reporte == null) {
+            return ResponseEntity.notFound().build();
+        }
+        Long idOrganizacionCaso = reporte.getIdOrganizacion();
+        if (idOrganizacionCaso == null || !puedeVerOrganizacion(idOrganizacionCaso)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiError(HttpStatus.FORBIDDEN.value(),
+                            "No puedes ver el seguimiento de este caso", Map.of("idReporte", String.valueOf(id))));
+        }
+
+        return ResponseEntity.ok(seguimientoCasoRepository.findByIdReporteOrderByFechaCreacionDesc(id));
+    }
+
+    /**
+     * HU-21: agrega una entrada de seguimiento (nota + foto opcional) a un caso.
+     * Solo la organización asignada al caso puede hacerlo.
+     */
+    @PostMapping("/{id}/seguimientos")
+    public ResponseEntity<?> agregarSeguimiento(@PathVariable Long id,
+                                                 @Valid @RequestBody SeguimientoCasoRequestDTO body) {
+        Reporte reporte = reporteRepository.findById(id).orElse(null);
+        if (reporte == null) {
+            return ResponseEntity.notFound().build();
+        }
+        Long idOrganizacionCaso = reporte.getIdOrganizacion();
+        if (idOrganizacionCaso == null || !puedeVerOrganizacion(idOrganizacionCaso)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new ApiError(HttpStatus.FORBIDDEN.value(),
+                            "Solo la organización asignada puede agregar seguimiento a este caso",
+                            Map.of("idReporte", String.valueOf(id))));
+        }
+
+        SeguimientoCaso seguimiento = new SeguimientoCaso();
+        seguimiento.setIdReporte(id);
+        seguimiento.setIdOrganizacion(idOrganizacionCaso);
+        seguimiento.setNota(body.nota());
+        seguimiento.setFotoUrl(body.fotoUrl());
+
+        SeguimientoCaso guardado = seguimientoCasoRepository.save(seguimiento);
+        logger.info("Seguimiento agregado al caso ID: {} por organización ID: {}", id, idOrganizacionCaso);
+        return ResponseEntity.status(HttpStatus.CREATED).body(guardado);
     }
 }

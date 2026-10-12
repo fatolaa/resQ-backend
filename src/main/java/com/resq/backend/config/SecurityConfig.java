@@ -82,6 +82,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/reportes/revision/**")
                         .hasAnyRole(ROL_VOLUNTARIO, ROL_ADMIN)
 
+                        // HU-21: el panel de una organizacion (sus casos y los disponibles para
+                        // tomar) no puede ser publico. Misma razon que la regla de arriba: son
+                        // GET bajo /api/reportes/**, asi que tienen que ir ANTES del permitAll
+                        // de abajo o nunca se evaluarian.
+                        .requestMatchers(HttpMethod.GET, "/api/reportes/disponibles").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/reportes/organizacion/**").authenticated()
+
                         // El mapa del landing muestra casos a quien no ha iniciado sesion.
                         .requestMatchers(HttpMethod.GET, "/api/reportes/**").permitAll()
 
@@ -116,4 +123,4 @@ public class SecurityConfig {
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
-}
+}       
