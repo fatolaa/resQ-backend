@@ -176,6 +176,22 @@ class UsuarioControllerSeguridadTest {
     }
 
     @Test
+    @DisplayName("permite al administrador editar una cuenta sin reenviar el password")
+    void debePermitirEditarUnaCuentaSinPassword() throws Exception {
+        when(usuarioRepository.save(any(Usuario.class)))
+                .thenAnswer(invocacion -> invocacion.getArgument(0));
+
+        mockMvc.perform(put("/api/usuarios/2")
+                        .header("Authorization", "Bearer " + TOKEN_ADMIN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                { "nombre": "Luis Editado", "email": "luis@resq.co", "rol": "USUARIO" }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nombre").value("Luis Editado"));
+    }
+
+    @Test
     @DisplayName("rechaza que el administrador escriba un rol que no existe")
     void debeRechazarUnRolInexistente() throws Exception {
         mockMvc.perform(patch("/api/usuarios/2")
