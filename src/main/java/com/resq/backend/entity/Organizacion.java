@@ -19,7 +19,7 @@ public class Organizacion {
     private Long idOrganizacion;
 
     // Un usuario representa a una sola organización.
-    @Column(name = "id_representante", nullable = false, unique = true)
+    @Column(name = "id_usuario", nullable = false, unique = true)
     private Long idRepresentante;
 
     @Column(name = "nombre", nullable = false, length = 150)
