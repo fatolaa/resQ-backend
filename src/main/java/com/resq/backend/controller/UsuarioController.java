@@ -102,9 +102,9 @@ public class UsuarioController {
 
     @PutMapping("/{id}")
     public ResponseEntity<?> actualizarUsuario(@PathVariable Long id,
-@Valid @RequestBody UsuarioRequestDTO request) {
+                                                       @Valid @RequestBody UsuarioUpdateDTO updates) {
         logger.info("Actualizando usuario ID: {}", id);
-        ResponseEntity<?> rolInvalido = validarRol(request.rol());
+        ResponseEntity<?> rolInvalido = validarRol(updates.rol());
         if (rolInvalido != null) {
             logger.warn("Rol inválido al actualizar usuario ID: {}", id);
             return rolInvalido;
@@ -116,13 +116,21 @@ public class UsuarioController {
             return ResponseEntity.notFound().build();
         }
 
-        usuario.setNombre(request.nombre());
-        usuario.setEmail(request.email());
-        if (request.password() != null && !request.password().isBlank()) {
-            usuario.setPasswordHash(passwordEncoder.encode(request.password()));
+        if (updates.nombre() != null) {
+            usuario.setNombre(updates.nombre());
         }
-        usuario.setTelefono(request.telefono());
-        usuario.setRol(normalizarRol(request.rol()));
+        if (updates.email() != null) {
+            usuario.setEmail(updates.email());
+        }
+        if (updates.password() != null && !updates.password().isBlank()) {
+            usuario.setPasswordHash(passwordEncoder.encode(updates.password()));
+        }
+        if (updates.telefono() != null) {
+            usuario.setTelefono(updates.telefono());
+        }
+        if (updates.rol() != null) {
+            usuario.setRol(normalizarRol(updates.rol()));
+        }
 
         Usuario guardado = usuarioRepository.save(usuario);
         logger.info("Usuario ID: {} actualizado correctamente", id);
