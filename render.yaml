@@ -1,0 +1,36 @@
+# Blueprint de Render para el backend resq.
+# Deploy: New -> Blueprint -> elegir este repo (la rama del deploy) -> Apply.
+#
+# Nota 1: DB_URL / DB_USERNAME / DB_PASSWORD / JWT_SECRET llevan sync: false,
+# o sea que NO se sincronizan desde este archivo: tenes que pegarlos a mano en
+# el dashboard de Render cuando crea el servicio (o importarlos de tu DB en Aiven).
+# JWT_SECRET: exportala con una clave propia de 32+ bytes. El default de
+# application.properties es solo para desarrollo local.
+#
+# Nota 2 (fotos, HU-10): Render no guarda el filesystem entre deploys salvo que
+# agregues un Disk (plan de pago). Las fotos subidas se pierden al apagar/reciclar
+# el servicio. Para el alcance academico se acepta; si se quisiera persistencia
+# habria que mover el storage a S3/Cloudinary (fuera de alcance).
+
+services:
+  - type: web
+    name: resq-backend
+    runtime: java
+    plan: free
+    buildCommand: ./mvnw clean package -DskipTests
+    startCommand: java -jar target/resq-backend-0.0.1-SNAPSHOT.jar
+    autoDeploy: true
+    healthCheckPath: /api/reportes
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION_MS
+        value: 86400000
+      - key: FOTOS_DIR
+        value: uploads/reportes
