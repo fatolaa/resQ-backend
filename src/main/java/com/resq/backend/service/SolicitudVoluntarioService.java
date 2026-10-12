@@ -105,6 +105,28 @@ public class SolicitudVoluntarioService {
         return toDetalle(guardada);
     }
 
+    @Transactional
+    public SolicitudVoluntarioDetalleDTO crearSolicitud(Usuario usuario, String tipoAyuda, String mensaje) {
+        logger.info("Creando solicitud de voluntario del usuario ID: {}", usuario.getIdUsuario());
+        if ("VOLUNTARIO".equals(usuario.getRol())) {
+            throw new IllegalStateException("El usuario ya es voluntario");
+        }
+        if (solicitudRepository.findTopByUsuarioAndEstadoOrderByFechaSolicitudDesc(usuario, EstadoSolicitudVoluntario.PENDIENTE).isPresent()) {
+            throw new IllegalStateException("Ya tienes una solicitud pendiente");
+        }
+        if (!puedeSolicitarVoluntario(usuario)) {
+            throw new IllegalStateException("Debes esperar " + DIAS_BLOQUEO_RECHAZO + " dias desde el ultimo rechazo antes de volver a solicitar");
+        }
+        SolicitudVoluntario solicitud = new SolicitudVoluntario();
+        solicitud.setUsuario(usuario);
+        solicitud.setTipoAyuda(tipoAyuda != null ? tipoAyuda.trim() : null);
+        solicitud.setMensaje(mensaje != null && !mensaje.isBlank() ? mensaje.trim() : null);
+        solicitud.setEstado(EstadoSolicitudVoluntario.PENDIENTE);
+        solicitud.setFechaSolicitud(LocalDateTime.now());
+        solicitud.setNotificada(false);
+        return toDetalle(solicitudRepository.save(solicitud));
+    }
+
     public boolean puedeSolicitarVoluntario(Usuario usuario) {
         SolicitudVoluntario ultima = solicitudRepository.findTopByUsuarioOrderByFechaSolicitudDesc(usuario).orElse(null);
         if (ultima == null) {
