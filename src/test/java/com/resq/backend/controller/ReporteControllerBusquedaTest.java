@@ -2,7 +2,9 @@ package com.resq.backend.controller;
 
 import com.resq.backend.dto.ApiError;
 import com.resq.backend.entity.Reporte;
+import com.resq.backend.repository.OrganizacionRepository;
 import com.resq.backend.repository.ReporteRepository;
+import com.resq.backend.repository.SeguimientoCasoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,12 +27,16 @@ import static org.mockito.Mockito.when;
 class ReporteControllerBusquedaTest {
 
     private ReporteRepository reporteRepository;
+    private OrganizacionRepository organizacionRepository;
+    private SeguimientoCasoRepository seguimientoCasoRepository;
     private ReporteController controller;
 
     @BeforeEach
     void setUp() {
         reporteRepository = mock(ReporteRepository.class);
-        controller = new ReporteController(reporteRepository);
+        organizacionRepository = mock(OrganizacionRepository.class);
+        seguimientoCasoRepository = mock(SeguimientoCasoRepository.class);
+        controller = new ReporteController(reporteRepository, organizacionRepository, seguimientoCasoRepository);
     }
 
     private static Reporte reporteEn(String estado) {

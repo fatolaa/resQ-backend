@@ -1,7 +1,6 @@
 package com.resq.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.resq.backend.validation.CoordenadasCoherentes;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -13,7 +12,6 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "reporte")
-@CoordenadasCoherentes
 public class Reporte {
 
     @Id
@@ -25,17 +23,16 @@ public class Reporte {
     @Column(name = "id_usuario", nullable = false)
     private Long idUsuario;
 
-    @NotBlank(message = "tipoCaso es obligatorio")
-    @Column(name = "tipo_caso", length = 100)
+    @NotBlank(message = "El tipo de caso es obligatorio")
+    @Column(name = "tipo_caso", nullable = false)
     private String tipoCaso;
 
     @Column(name = "descripcion", columnDefinition = "TEXT")
     private String descripcion;
 
-    @NotBlank(message = "estado es obligatorio")
-    @Pattern(regexp = "PENDIENTE|EN_PROCESO|RESUELTO|CANCELADO",
-            message = "estado debe ser PENDIENTE, EN_PROCESO, RESUELTO o CANCELADO")
-    @Column(name = "estado", length = 50)
+    @NotBlank(message = "El estado es obligatorio")
+    @Pattern(regexp = "PENDIENTE|EN_PROCESO|RESUELTO|CANCELADO", message = "Estado inválido")
+    @Column(name = "estado", nullable = false)
     private String estado;
 
     @Column(name = "foto_url", length = 500)
@@ -44,29 +41,24 @@ public class Reporte {
     @Column(name = "fecha_creacion")
     private LocalDateTime fechaCreacion;
 
-    @DecimalMin(value = "-90.0", message = "latitud debe estar entre -90 y 90")
-    @DecimalMax(value = "90.0", message = "latitud debe estar entre -90 y 90")
+    @DecimalMin(value = "-90.0", message = "Latitud inválida")
+    @DecimalMax(value = "90.0", message = "Latitud inválida")
     @Column(name = "latitud")
     private Double latitud;
 
-    @DecimalMin(value = "-180.0", message = "longitud debe estar entre -180 y 180")
-    @DecimalMax(value = "180.0", message = "longitud debe estar entre -180 y 180")
+    @DecimalMin(value = "-180.0", message = "Longitud inválida")
+    @DecimalMax(value = "180.0", message = "Longitud inválida")
     @Column(name = "longitud")
     private Double longitud;
 
-    // ============ HU-19: revision de la solicitud por un voluntario ============
-    // Son de solo lectura desde el JSON: un usuario no puede aprobar su propio
-    // reporte mandando estadoRevision en el POST/PUT. Estos campos solo cambian
-    // desde /api/reportes/revision. Son nullables para no romper reportes viejos
-    // (null se trata como pendiente de revision).
+    // HU-19: campos de revisión, controlados solo por el backend
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    @Pattern(regexp = EstadoRevision.PENDIENTE + "|" + EstadoRevision.APROBADO + "|" + EstadoRevision.RECHAZADO,
-            message = "estadoRevision debe ser PENDIENTE_REVISION, APROBADO o RECHAZADO")
-    @Column(name = "estado_revision", length = 30)
+    @Pattern(regexp = "PENDIENTE|APROBADO|RECHAZADO", message = "Estado de revisión inválido")
+    @Column(name = "estado_revision")
     private String estadoRevision;
 
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    @Column(name = "nota_revision", length = 500)
+    @Column(name = "nota_revision", columnDefinition = "TEXT")
     private String notaRevision;
 
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
@@ -76,6 +68,13 @@ public class Reporte {
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Column(name = "fecha_revision")
     private LocalDateTime fechaRevision;
+
+    // ---- HU-21: asignación a una organización ----
+    // Null mientras el caso no ha sido tomado por ninguna organización.
+    // Solo el backend lo asigna (al aceptar un caso), nunca el cliente.
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    @Column(name = "id_organizacion")
+    private Long idOrganizacion;
 
     public Reporte() {
     }
@@ -192,5 +191,15 @@ public class Reporte {
 
     public void setFechaRevision(LocalDateTime fechaRevision) {
         this.fechaRevision = fechaRevision;
+    }
+
+    // HU-21
+    public Long getIdOrganizacion() {
+        return idOrganizacion;
+    }
+
+    // HU-21
+    public void setIdOrganizacion(Long idOrganizacion) {
+        this.idOrganizacion = idOrganizacion;
     }
 }
