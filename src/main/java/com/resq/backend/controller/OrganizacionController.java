@@ -13,13 +13,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 /**
- * HU-20: registro de organizaciones. HU-28: edición de la ficha.
+ * HU-20: registro de organizaciones. HU-28: edición de la ficha. HU-29: directorio.
  *
  * - POST /api/organizaciones                        registra (multipart: campos + logo opcional)
+ * - GET  /api/organizaciones                        directorio de verificadas (filtros: tipo, zona)
+ * - GET  /api/organizaciones/{id}                   ficha de una organización verificada
  * - GET  /api/organizaciones/representante/{id}     organización de un usuario (con su estado)
  * - PUT  /api/organizaciones/{id}                   edita la ficha (multipart: campos + logo opcional + quitarLogo)
  * El logo se guarda con el servicio de fotos de HU-10 y se ve en GET /api/reportes/fotos/{nombre}.
@@ -95,6 +98,25 @@ public class OrganizacionController {
                         email, descripcion, horarios, zonasCobertura),
                 logo, quitarLogo);
         return ResponseEntity.ok(actualizada);
+    }
+
+    /**
+     * HU-29: directorio de organizaciones verificadas. `tipo` y `zona` son opcionales.
+     * El listado es para usuarios o voluntarios con sesión iniciada.
+     */
+    @GetMapping
+    public ResponseEntity<List<Organizacion>> consultarDirectorio(
+            @RequestParam(name = "tipo", required = false) String tipo,
+            @RequestParam(name = "zona", required = false) String zona) {
+        return ResponseEntity.ok(organizacionService.consultarDirectorio(tipo, zona));
+    }
+
+    /** HU-29: ficha de una organización verificada; 404 si no existe o no está verificada. */
+    @GetMapping("/{idOrganizacion}")
+    public ResponseEntity<Organizacion> obtenerFicha(@PathVariable Long idOrganizacion) {
+        return organizacionService.obtenerFicha(idOrganizacion)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/representante/{idUsuario}")

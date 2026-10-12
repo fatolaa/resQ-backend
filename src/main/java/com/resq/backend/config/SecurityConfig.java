@@ -103,6 +103,11 @@ public class SecurityConfig {
                         // Ver un usuario concreto: lo puede pedir su propietario o el administrador.
                         .requestMatchers(HttpMethod.GET, "/api/usuarios/**").authenticated()
 
+                        // HU-29: el directorio de organizaciones lo consultan usuarios y
+                        // voluntarios con sesión iniciada; solo expone verificadas.
+                        .requestMatchers(HttpMethod.GET, "/api/organizaciones", "/api/organizaciones/**")
+                        .authenticated()
+
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

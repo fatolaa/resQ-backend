@@ -4,6 +4,7 @@ import com.resq.backend.dto.OrganizacionRegistradaDTO;
 import com.resq.backend.dto.OrganizacionRequestDTO;
 import com.resq.backend.entity.EstadoVerificacion;
 import com.resq.backend.entity.Organizacion;
+import com.resq.backend.entity.TipoOrganizacion;
 import com.resq.backend.exception.FotoInvalidaException;
 import com.resq.backend.exception.OrganizacionException;
 import com.resq.backend.repository.OrganizacionRepository;
@@ -14,6 +15,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Comparator;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -93,6 +97,53 @@ public class OrganizacionService {
 
     public Optional<Organizacion> obtenerDeRepresentante(Long idUsuario) {
         return idUsuario == null ? Optional.empty() : organizacionRepository.findByIdRepresentante(idUsuario);
+    }
+
+    /**
+     * HU-29: directorio de organizaciones. Solo se listan las VERIFICADAS por un
+     * administrador y se puede filtrar por tipo y por zona de cobertura. El tipo se
+     * valida para no devolver un directorio vacío silenciosamente ante un valor mal escrito.
+     */
+    public List<Organizacion> consultarDirectorio(String tipo, String zona) {
+        String tipoFiltro = normalizarTipoFiltro(tipo);
+        String zonaFiltro = limpiar(zona);
+
+        return organizacionRepository.findByEstadoVerificacion(EstadoVerificacion.VERIFICADA).stream()
+                .filter(o -> tipoFiltro == null || tipoFiltro.equalsIgnoreCase(o.getTipo()))
+                .filter(o -> zonaFiltro == null || coincideZona(o.getZonasCobertura(), zonaFiltro))
+                .sorted(Comparator.comparing(Organizacion::getNombre, String.CASE_INSENSITIVE_ORDER))
+                .toList();
+    }
+
+    /**
+     * HU-29: ficha de una organización. Pendientes y rechazadas no son públicas, así
+     * que para el directorio se comportan como si no existieran (404).
+     */
+    public Optional<Organizacion> obtenerFicha(Long idOrganizacion) {
+        if (idOrganizacion == null) {
+            return Optional.empty();
+        }
+        return organizacionRepository.findById(idOrganizacion)
+                .filter(o -> EstadoVerificacion.VERIFICADA.equals(o.getEstadoVerificacion()));
+    }
+
+    private static String normalizarTipoFiltro(String tipo) {
+        String limpio = limpiar(tipo);
+        if (limpio == null) {
+            return null;
+        }
+        String mayusculas = limpio.toUpperCase(Locale.ROOT);
+        if (!TipoOrganizacion.VALORES.contains(mayusculas)) {
+            throw new OrganizacionException(HttpStatus.BAD_REQUEST,
+                    "Tipo inválido: " + limpio + ". Permitidos: " + String.join(", ", TipoOrganizacion.VALORES),
+                    Map.of("tipo", "El tipo debe ser REFUGIO, VETERINARIA o RESCATISTA_INDEPENDIENTE"));
+        }
+        return mayusculas;
+    }
+
+    private static boolean coincideZona(String zonasCobertura, String zona) {
+        return zonasCobertura != null
+                && zonasCobertura.toLowerCase(Locale.ROOT).contains(zona.toLowerCase(Locale.ROOT));
     }
 
     /**
