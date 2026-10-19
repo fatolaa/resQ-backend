@@ -101,6 +101,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/usuarios/*/voluntario").authenticated()
                         .requestMatchers(HttpMethod.PATCH, "/api/usuarios/*/voluntario/**").authenticated()
 
+                        // HU-36a: cada usuario gestiona sus propias preferencias de notificacion.
+                        // Tiene que ir ANTES de la regla PUT de /api/usuarios/** de abajo, que es
+                        // admin-only: si no, un usuario comun no podria guardar sus preferencias.
+                        .requestMatchers("/api/usuarios/me/preferencias-notificacion").authenticated()
+
                         // HU-23: gestionar cuentas es exclusivo del administrador.
                         .requestMatchers(HttpMethod.GET, "/api/usuarios").hasRole(ROL_ADMIN)
                         .requestMatchers(HttpMethod.PUT, "/api/usuarios/**").hasRole(ROL_ADMIN)
