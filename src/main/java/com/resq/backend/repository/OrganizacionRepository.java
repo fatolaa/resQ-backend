@@ -4,6 +4,7 @@ import com.resq.backend.entity.Organizacion;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,4 +21,7 @@ public interface OrganizacionRepository extends JpaRepository<Organizacion, Long
 
     // HU-29: el directorio solo expone organizaciones verificadas por un administrador.
     List<Organizacion> findByEstadoVerificacion(String estadoVerificacion);
+
+    // HU-34: organizaciones que ya existian al cierre de un periodo.
+    List<Organizacion> findByFechaRegistroLessThanEqualOrFechaRegistroIsNull(LocalDateTime hasta);
 }

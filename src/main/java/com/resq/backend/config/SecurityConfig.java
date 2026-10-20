@@ -129,6 +129,9 @@ public class SecurityConfig {
                         // limita la consulta a la organización y a quien reportó el caso.
                         .requestMatchers("/api/adopciones", "/api/adopciones/**").authenticated()
 
+                        // HU-34: las metricas de la comunidad son exclusivas del administrador.
+                        .requestMatchers("/api/metricas", "/api/metricas/**").hasRole(ROL_ADMIN)
+
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

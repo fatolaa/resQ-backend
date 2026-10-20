@@ -15,4 +15,7 @@ public interface SolicitudVoluntarioRepository extends JpaRepository<SolicitudVo
     Optional<SolicitudVoluntario> findTopByUsuarioAndEstadoOrderByFechaSolicitudDesc(Usuario usuario, EstadoSolicitudVoluntario estado);
     boolean existsByUsuarioAndEstadoAndFechaResolucionAfter(Usuario usuario, EstadoSolicitudVoluntario estado, LocalDateTime fechaLimite);
     Optional<SolicitudVoluntario> findTopByUsuarioOrderByFechaSolicitudDesc(Usuario usuario);
+
+    // HU-34: solicitudes aprobadas (nuevos voluntarios y su tipo de ayuda).
+    List<SolicitudVoluntario> findByEstado(EstadoSolicitudVoluntario estado);
 }

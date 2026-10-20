@@ -38,6 +38,18 @@ public class Usuario {
     public Usuario() {
     }
 
+    /**
+     * HU-34: las metricas cuentan los registros por fecha. Antes nadie llenaba
+     * fecha_registro al crear la cuenta, asi que quedaba en null y el usuario no
+     * aparecia en ningun periodo.
+     */
+    @PrePersist
+    public void prePersist() {
+        if (fechaRegistro == null) {
+            fechaRegistro = LocalDateTime.now();
+        }
+    }
+
     public Long getIdUsuario() {
         return idUsuario;
     }
