@@ -3,6 +3,8 @@ package com.resq.backend.websocket;
 import com.resq.backend.entity.Usuario;
 import com.resq.backend.repository.UsuarioRepository;
 import com.resq.backend.security.JwtService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.simp.stomp.StompCommand;
@@ -25,6 +27,8 @@ import java.util.List;
  */
 @Component
 public class JwtChannelInterceptor implements ChannelInterceptor {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtChannelInterceptor.class);
 
     private static final String CABECERA_AUTORIZACION = "Authorization";
     private static final String PREFIJO_BEARER = "Bearer ";
@@ -58,31 +62,41 @@ public class JwtChannelInterceptor implements ChannelInterceptor {
     private StompPrincipal autenticar(StompHeaderAccessor acceso) {
         String cabecera = primeraCabecera(acceso, CABECERA_AUTORIZACION);
         if (cabecera == null || !cabecera.startsWith(PREFIJO_BEARER)) {
+            logger.warn("Handshake WebSocket sin token Bearer");
             throw new AccessDeniedException("Falta el token en el handshake del WebSocket.");
         }
         Long idUsuario = jwtService.extraerIdUsuarioSiEsValido(cabecera.substring(PREFIJO_BEARER.length()));
         if (idUsuario == null) {
+            logger.warn("Handshake WebSocket con token invalido o vencido");
             throw new AccessDeniedException("Token invalido o vencido.");
         }
         Usuario usuario = usuarioRepository.findById(idUsuario)
-                .orElseThrow(() -> new AccessDeniedException("Usuario inexistente."));
+                .orElseThrow(() -> {
+                    logger.warn("Handshake WebSocket con usuario inexistente ID {}", idUsuario);
+                    return new AccessDeniedException("Usuario inexistente.");
+                });
+        logger.info("Handshake WebSocket autenticado para usuario ID {}", usuario.getIdUsuario());
         return new StompPrincipal(usuario.getIdUsuario(), usuario.getEmail(), usuario.getRol());
     }
 
     private void autorizarSuscripcion(StompHeaderAccessor acceso) {
         Long idUsuario = idPrincipal(acceso);
         if (idUsuario == null) {
+            logger.warn("Suscripcion rechazada a {}: sesion no autenticada", acceso.getDestination());
             throw new AccessDeniedException("Sesion no autenticada.");
         }
         Long idUsuarioDeLaSala = SalaWebSocket.idUsuarioDe(acceso.getDestination());
         if (idUsuarioDeLaSala != null) {
             if (!idUsuario.equals(idUsuarioDeLaSala)) {
+                logger.warn("Suscripcion rechazada: usuario ID {} intento la sala personal de ID {}",
+                        idUsuario, idUsuarioDeLaSala);
                 throw new AccessDeniedException("No podes suscribirte a la sala de otro usuario.");
             }
             return;
         }
         Long idCaso = SalaWebSocket.idCasoDe(acceso.getDestination());
         if (idCaso != null && !participanteCasoService.participa(idUsuario, idCaso)) {
+            logger.warn("Suscripcion rechazada: usuario ID {} no participa del caso {}", idUsuario, idCaso);
             throw new AccessDeniedException("No participas del caso " + idCaso + ".");
         }
     }

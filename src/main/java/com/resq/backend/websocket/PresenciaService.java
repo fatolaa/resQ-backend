@@ -1,5 +1,7 @@
 package com.resq.backend.websocket;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
@@ -17,6 +19,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Component
 public class PresenciaService {
+
+    private static final Logger logger = LoggerFactory.getLogger(PresenciaService.class);
 
     private final EventoWebSocketService eventos;
     private final ParticipanteCasoService participanteCasoService;
@@ -36,6 +40,7 @@ public class PresenciaService {
         }
         int sesiones = sesionesPorUsuario.merge(principal.getIdUsuario(), 1, Integer::sum);
         if (sesiones == 1) {
+            logger.info("Usuario ID {} en linea", principal.getIdUsuario());
             publicarPresencia(principal.getIdUsuario(), true);
         }
     }
@@ -49,6 +54,7 @@ public class PresenciaService {
         Integer sesiones = sesionesPorUsuario.computeIfPresent(principal.getIdUsuario(),
                 (id, actual) -> actual > 1 ? actual - 1 : null);
         if (sesiones == null) {
+            logger.info("Usuario ID {} fuera de linea", principal.getIdUsuario());
             publicarPresencia(principal.getIdUsuario(), false);
         }
     }

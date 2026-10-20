@@ -1,6 +1,8 @@
 package com.resq.backend.websocket;
 
 import com.resq.backend.websocket.EventoReplayStore.ReplayEvento;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +14,8 @@ import java.util.List;
  */
 @Service
 public class EventoWebSocketService {
+
+    private static final Logger logger = LoggerFactory.getLogger(EventoWebSocketService.class);
 
     private final SimpMessagingTemplate mensajeria;
     private final EventoReplayStore replayStore;
@@ -28,6 +32,8 @@ public class EventoWebSocketService {
         }
         ReplayEvento replay = replayStore.guardar(idUsuario, evento);
         mensajeria.convertAndSend(SalaWebSocket.deUsuario(idUsuario), replay.evento().conId(replay.id()));
+        logger.debug("Evento {} enviado al usuario ID {} (replay ID {})",
+                evento.tipo(), idUsuario, replay.id());
     }
 
     /** Evento de caso (chat/presencia): va a la sala del caso. */
@@ -36,6 +42,7 @@ public class EventoWebSocketService {
             return;
         }
         mensajeria.convertAndSend(SalaWebSocket.deCaso(idCaso), evento);
+        logger.debug("Evento {} difundido al caso {}", evento.tipo(), idCaso);
     }
 
     /**

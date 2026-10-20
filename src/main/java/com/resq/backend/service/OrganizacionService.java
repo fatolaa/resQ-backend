@@ -11,6 +11,8 @@ import com.resq.backend.repository.OrganizacionRepository;
 import com.resq.backend.repository.UsuarioRepository;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,6 +31,8 @@ public class OrganizacionService {
 
     /** Los logos se guardan con el mismo servicio de fotos de HU-10 y se sirven por su endpoint público. */
     private static final String RUTA_FOTOS = "/api/reportes/fotos/";
+
+    private static final Logger logger = LoggerFactory.getLogger(OrganizacionService.class);
 
     private final OrganizacionRepository organizacionRepository;
     private final UsuarioRepository usuarioRepository;
@@ -57,14 +61,19 @@ public class OrganizacionService {
         validar(datos);
 
         if (!usuarioRepository.existsById(datos.idRepresentante())) {
+            logger.warn("Registro de organizacion rechazado: el usuario representante ID {} no existe",
+                    datos.idRepresentante());
             throw new OrganizacionException(HttpStatus.NOT_FOUND, "El usuario representante no existe",
                     Map.of("idRepresentante", "El usuario representante no existe"));
         }
         if (organizacionRepository.existsByIdRepresentante(datos.idRepresentante())) {
+            logger.warn("Registro de organizacion rechazado: el usuario ID {} ya tiene una organizacion",
+                    datos.idRepresentante());
             throw new OrganizacionException(HttpStatus.CONFLICT, "Ya registraste una organización",
                     Map.of("idRepresentante", "Este usuario ya tiene una organización registrada"));
         }
         if (organizacionRepository.existsByEmailIgnoreCase(datos.email())) {
+            logger.warn("Registro de organizacion rechazado: el email ya esta registrado");
             throw new OrganizacionException(HttpStatus.CONFLICT, "Ese email ya está registrado",
                     Map.of("email", "Ya existe una organización registrada con este email"));
         }
@@ -86,6 +95,8 @@ public class OrganizacionService {
         organizacion.setEstadoVerificacion(EstadoVerificacion.PENDIENTE);
 
         Organizacion guardada = organizacionRepository.save(organizacion);
+        logger.info("Organizacion ID {} registrada (representante ID {}, estado PENDIENTE)",
+                guardada.getIdOrganizacion(), guardada.getIdRepresentante());
 
         boolean enviado = emailService.enviar(
                 guardada.getEmail(),
@@ -157,16 +168,22 @@ public class OrganizacionService {
         validar(datos);
 
         Organizacion organizacion = organizacionRepository.findById(idOrganizacion)
-                .orElseThrow(() -> new OrganizacionException(HttpStatus.NOT_FOUND, "La organización no existe",
-                        Map.of("idOrganizacion", "La organización no existe")));
+                .orElseThrow(() -> {
+                    logger.warn("Edicion de organizacion rechazada: la organizacion ID {} no existe", idOrganizacion);
+                    return new OrganizacionException(HttpStatus.NOT_FOUND, "La organización no existe",
+                            Map.of("idOrganizacion", "La organización no existe"));
+                });
 
         if (!organizacion.getIdRepresentante().equals(datos.idRepresentante())) {
+            logger.warn("Edicion de organizacion rechazada: usuario ID {} no es el representante de la organizacion ID {}",
+                    datos.idRepresentante(), idOrganizacion);
             throw new OrganizacionException(HttpStatus.FORBIDDEN, "Solo puedes editar tu propia organización",
                     Map.of("idRepresentante", "Solo el representante puede editar su organización"));
         }
 
         Optional<Organizacion> conEmail = organizacionRepository.findByEmailIgnoreCase(datos.email());
         if (conEmail.isPresent() && !conEmail.get().getIdOrganizacion().equals(idOrganizacion)) {
+            logger.warn("Edicion de organizacion rechazada: el email ya pertenece a otra organizacion");
             throw new OrganizacionException(HttpStatus.CONFLICT, "Ese email ya está registrado",
                     Map.of("email", "Ya existe una organización registrada con este email"));
         }
@@ -182,7 +199,9 @@ public class OrganizacionService {
         organizacion.setHorarios(datos.horarios());
         organizacion.setZonasCobertura(datos.zonasCobertura());
 
-        return organizacionRepository.save(organizacion);
+        Organizacion guardada = organizacionRepository.save(organizacion);
+        logger.info("Organizacion ID {} actualizada", guardada.getIdOrganizacion());
+        return guardada;
     }
 
     /**
@@ -240,6 +259,7 @@ public class OrganizacionService {
         violaciones.stream()
                 .sorted((a, b) -> a.getMessage().compareTo(b.getMessage()))
                 .forEach(v -> errores.putIfAbsent(v.getPropertyPath().toString(), v.getMessage()));
+        logger.warn("Organizacion rechazada por validacion: {} campo(s) con error", errores.size());
         throw new OrganizacionException(HttpStatus.BAD_REQUEST, "Revisa los datos del formulario", errores);
     }
 

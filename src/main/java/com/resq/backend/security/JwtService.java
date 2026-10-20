@@ -3,6 +3,8 @@ package com.resq.backend.security;
 import com.resq.backend.entity.Usuario;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +22,8 @@ import java.util.Date;
 @Service
 public class JwtService {
 
+    private static final Logger logger = LoggerFactory.getLogger(JwtService.class);
+
     private final SecretKey clave;
     private final long expiracionMs;
 
@@ -31,6 +35,7 @@ public class JwtService {
 
     public String generarToken(Usuario usuario) {
         Date ahora = new Date();
+        logger.info("Emitiendo token JWT para usuario ID {}", usuario.getIdUsuario());
         return Jwts.builder()
                 .subject(String.valueOf(usuario.getIdUsuario()))
                 .issuedAt(ahora)
@@ -53,6 +58,7 @@ public class JwtService {
         try {
             return extraerIdUsuario(token);
         } catch (RuntimeException tokenInvalido) {
+            logger.debug("Token JWT rechazado: {}", tokenInvalido.getMessage());
             return null;
         }
     }

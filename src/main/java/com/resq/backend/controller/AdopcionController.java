@@ -7,6 +7,8 @@ import com.resq.backend.exception.AdopcionException;
 import com.resq.backend.security.UsuarioAutenticado;
 import com.resq.backend.service.AdopcionService;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +27,8 @@ import java.util.Optional;
 @RequestMapping("/api/adopciones")
 public class AdopcionController {
 
+    private static final Logger logger = LoggerFactory.getLogger(AdopcionController.class);
+
     private final AdopcionService adopcionService;
 
     public AdopcionController(AdopcionService adopcionService) {
@@ -35,6 +39,7 @@ public class AdopcionController {
     public ResponseEntity<?> registrar(@Valid @RequestBody AdopcionRequestDTO solicitud) {
         Optional<Long> idToken = UsuarioAutenticado.idActual();
         if (idToken.isEmpty()) {
+            logger.warn("Alta de adopcion rechazada: sin sesion activa");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ApiError(HttpStatus.UNAUTHORIZED.value(),
                             "Debes iniciar sesión para registrar una adopción", null));

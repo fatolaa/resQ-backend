@@ -3,6 +3,8 @@ package com.resq.backend.websocket;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 
 import java.security.Principal;
@@ -15,6 +17,8 @@ import java.util.Map;
  */
 @Controller
 public class ChatWebSocketController {
+
+    private static final Logger logger = LoggerFactory.getLogger(ChatWebSocketController.class);
 
     private final EventoWebSocketService eventos;
     private final ParticipanteCasoService participanteCasoService;
@@ -30,6 +34,7 @@ public class ChatWebSocketController {
     public void escribiendo(@DestinationVariable Long idCaso, Principal principal) {
         Long idUsuario = idDe(principal);
         if (idUsuario == null || !participanteCasoService.participa(idUsuario, idCaso)) {
+            logger.debug("Aviso de escritura ignorado: usuario {} no participa del caso {}", idUsuario, idCaso);
             return;
         }
         eventos.aCaso(idCaso, EventoWebSocket.de(TipoEventoWebSocket.CHAT_ESCRIBIENDO,
@@ -41,10 +46,12 @@ public class ChatWebSocketController {
     public void replay(@Payload PeticionReplay peticion, Principal principal) {
         Long idUsuario = idDe(principal);
         if (idUsuario == null) {
+            logger.debug("Peticion de replay ignorada: principal no identificado");
             return;
         }
         long ultimoId = peticion != null && peticion.ultimoId() != null ? peticion.ultimoId() : 0L;
-        eventos.reenviarPendientes(idUsuario, ultimoId);
+        int reenviados = eventos.reenviarPendientes(idUsuario, ultimoId);
+        logger.info("Replay WebSocket para usuario ID {}: {} evento(s) desde {}", idUsuario, reenviados, ultimoId);
     }
 
     private Long idDe(Principal principal) {

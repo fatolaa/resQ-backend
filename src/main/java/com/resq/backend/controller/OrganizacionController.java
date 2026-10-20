@@ -7,6 +7,8 @@ import com.resq.backend.entity.Organizacion;
 import com.resq.backend.exception.OrganizacionException;
 import com.resq.backend.security.UsuarioAutenticado;
 import com.resq.backend.service.OrganizacionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +32,8 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/organizaciones")
 public class OrganizacionController {
+
+    private static final Logger logger = LoggerFactory.getLogger(OrganizacionController.class);
 
     private final OrganizacionService organizacionService;
 
@@ -56,6 +60,8 @@ public class OrganizacionController {
 
         Optional<Long> idToken = UsuarioAutenticado.idActual();
         if (idToken.isPresent() && idRepresentante != null && !idToken.get().equals(idRepresentante)) {
+            logger.warn("Alta de organizacion rechazada: usuario ID {} intento registrarla a nombre de ID {}",
+                    idToken.get(), idRepresentante);
             return prohibido("No puedes registrar una organización a nombre de otro usuario");
         }
         // Con token, manda la identidad del token; sin él (backend sin JWT), la del cliente.
@@ -65,6 +71,7 @@ public class OrganizacionController {
                 new OrganizacionRequestDTO(representante, nombre, tipo, direccion, telefono,
                         email, descripcion, horarios, zonasCobertura),
                 logo);
+        logger.info("Organizacion registrada para representante ID {}", representante);
         return ResponseEntity.status(HttpStatus.CREATED).body(registrada);
     }
 
@@ -89,6 +96,8 @@ public class OrganizacionController {
 
         Optional<Long> idToken = UsuarioAutenticado.idActual();
         if (idToken.isPresent() && idRepresentante != null && !idToken.get().equals(idRepresentante)) {
+            logger.warn("Edicion de organizacion rechazada: usuario ID {} intento editar la de ID {}",
+                    idToken.get(), idRepresentante);
             return prohibido("No puedes editar la organización de otro usuario");
         }
         Long representante = idToken.orElse(idRepresentante);
@@ -97,6 +106,7 @@ public class OrganizacionController {
                 new OrganizacionRequestDTO(representante, nombre, tipo, direccion, telefono,
                         email, descripcion, horarios, zonasCobertura),
                 logo, quitarLogo);
+        logger.info("Organizacion ID {} actualizada por representante ID {}", idOrganizacion, representante);
         return ResponseEntity.ok(actualizada);
     }
 
@@ -123,6 +133,8 @@ public class OrganizacionController {
     public ResponseEntity<?> obtenerDeRepresentante(@PathVariable Long idUsuario) {
         Optional<Long> idToken = UsuarioAutenticado.idActual();
         if (idToken.isPresent() && !idToken.get().equals(idUsuario) && !UsuarioAutenticado.esAdmin()) {
+            logger.warn("Consulta de organizacion rechazada: usuario ID {} consulto la de ID {}",
+                    idToken.get(), idUsuario);
             return prohibido("Solo puedes consultar tu propia organización");
         }
 

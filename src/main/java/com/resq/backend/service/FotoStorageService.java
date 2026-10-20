@@ -1,6 +1,8 @@
 package com.resq.backend.service;
 
 import com.resq.backend.exception.FotoInvalidaException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.PathResource;
 import org.springframework.core.io.Resource;
@@ -28,6 +30,8 @@ import java.util.regex.Pattern;
  */
 @Service
 public class FotoStorageService {
+
+    private static final Logger logger = LoggerFactory.getLogger(FotoStorageService.class);
 
     public enum Formato {
         JPEG("jpg", "image/jpeg"),
@@ -70,9 +74,11 @@ public class FotoStorageService {
     /** Valida y guarda la foto. Devuelve el nombre de archivo generado. */
     public String guardar(MultipartFile archivo) {
         if (archivo == null || archivo.isEmpty()) {
+            logger.warn("Carga de foto rechazada: no se recibio archivo");
             throw new FotoInvalidaException(HttpStatus.BAD_REQUEST, "Debes seleccionar una fotografía");
         }
         if (archivo.getSize() > maxBytes) {
+            logger.warn("Carga de foto rechazada: {} bytes superan el maximo de {}", archivo.getSize(), maxBytes);
             throw new FotoInvalidaException(HttpStatus.PAYLOAD_TOO_LARGE,
                     "La fotografía supera el tamaño máximo permitido de " + (maxBytes / (1024 * 1024)) + " MB");
         }
@@ -82,17 +88,21 @@ public class FotoStorageService {
             try (InputStream in = archivo.getInputStream()) {
                 cabecera = in.readNBytes(12);
             }
-            Formato formato = detectarFormato(cabecera).orElseThrow(() ->
-                    new FotoInvalidaException(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
-                            "Formato no permitido. Usa una imagen JPG, PNG o WEBP"));
+            Formato formato = detectarFormato(cabecera).orElseThrow(() -> {
+                logger.warn("Carga de foto rechazada: firma de bytes no reconocida como JPG/PNG/WEBP");
+                return new FotoInvalidaException(HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                        "Formato no permitido. Usa una imagen JPG, PNG o WEBP");
+            });
 
             Files.createDirectories(directorio);
             String nombre = UUID.randomUUID() + "." + formato.getExtension();
             try (InputStream in = archivo.getInputStream()) {
                 Files.copy(in, directorio.resolve(nombre));
             }
+            logger.info("Foto almacenada como {} ({} bytes, formato {})", nombre, archivo.getSize(), formato);
             return nombre;
         } catch (IOException e) {
+            logger.error("No se pudo guardar la fotografia en {}", directorio, e);
             throw new UncheckedIOException("No se pudo guardar la fotografía", e);
         }
     }
@@ -126,6 +136,7 @@ public class FotoStorageService {
         } catch (IOException ignorado) {
             // La falta de borrado no debe hacer fallar una edición: si el archivo
             // queda huérfano, es un problema menor frente a perder el cambio.
+            logger.warn("No se pudo borrar la foto {}: queda huerfana", nombre, ignorado);
         }
     }
 
