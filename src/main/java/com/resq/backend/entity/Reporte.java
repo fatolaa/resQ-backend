@@ -1,6 +1,7 @@
 package com.resq.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.resq.backend.validation.CoordenadasCoherentes;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -12,6 +13,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "reporte")
+@CoordenadasCoherentes
 public class Reporte {
 
     @Id
@@ -53,7 +55,7 @@ public class Reporte {
 
     // HU-19: campos de revisión, controlados solo por el backend
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    @Pattern(regexp = "PENDIENTE|APROBADO|RECHAZADO", message = "Estado de revisión inválido")
+    @Pattern(regexp = "PENDIENTE_REVISION|APROBADO|RECHAZADO", message = "Estado de revisión inválido")
     @Column(name = "estado_revision")
     private String estadoRevision;
 
