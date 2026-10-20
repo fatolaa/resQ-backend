@@ -51,7 +51,7 @@ public class FotoStorageService {
         }
     }
 
-    public record FotoAlmacenada(Resource recurso, String contentType) {
+    public static record FotoAlmacenada(Resource recurso, String contentType) {
     }
 
     private static final Pattern NOMBRE_VALIDO =
