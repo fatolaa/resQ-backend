@@ -1,7 +1,9 @@
 package com.resq.backend.controller;
 
 import com.resq.backend.entity.Reporte;
+import com.resq.backend.repository.OrganizacionRepository;
 import com.resq.backend.repository.ReporteRepository;
+import com.resq.backend.repository.SeguimientoCasoRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,6 +29,12 @@ class ReporteControllerUbicacionHttpTest {
 
     @MockBean
     private ReporteRepository reporteRepository;
+
+    @MockBean
+    private OrganizacionRepository organizacionRepository;
+
+    @MockBean
+    private SeguimientoCasoRepository seguimientoCasoRepository;
 
     @Test
     @DisplayName("crea el reporte devolviendo la ubicacion asociada")
