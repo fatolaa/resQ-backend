@@ -11,6 +11,8 @@ import com.resq.backend.repository.OrganizacionRepository;
 import com.resq.backend.repository.ReporteRepository;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -33,6 +35,8 @@ public class AdopcionService {
     /** "Caso cerrado" en el dominio de reportes: un caso resuelto. */
     private static final String ESTADO_CERRADO = "RESUELTO";
 
+    private static final Logger logger = LoggerFactory.getLogger(AdopcionService.class);
+
     private final AdopcionRepository adopcionRepository;
     private final ReporteRepository reporteRepository;
     private final OrganizacionRepository organizacionRepository;
@@ -53,28 +57,39 @@ public class AdopcionService {
         validar(datos);
 
         Organizacion organizacion = organizacionRepository.findByIdRepresentante(idRepresentante)
-                .orElseThrow(() -> new AdopcionException(HttpStatus.FORBIDDEN,
-                        "Debes representar una organización para registrar una adopción",
-                        Map.of("idOrganizacion", "No tienes una organización registrada")));
+                .orElseThrow(() -> {
+                    logger.warn("Adopcion rechazada: usuario ID {} no representa una organizacion", idRepresentante);
+                    return new AdopcionException(HttpStatus.FORBIDDEN,
+                            "Debes representar una organización para registrar una adopción",
+                            Map.of("idOrganizacion", "No tienes una organización registrada"));
+                });
 
         if (!EstadoVerificacion.VERIFICADA.equals(organizacion.getEstadoVerificacion())) {
+            logger.warn("Adopcion rechazada: organizacion ID {} no esta verificada",
+                    organizacion.getIdOrganizacion());
             throw new AdopcionException(HttpStatus.FORBIDDEN,
                     "Tu organización debe estar verificada para registrar adopciones",
                     Map.of("idOrganizacion", "La organización no está verificada"));
         }
 
         Reporte reporte = reporteRepository.findById(datos.idReporte())
-                .orElseThrow(() -> new AdopcionException(HttpStatus.NOT_FOUND,
-                        "El caso no existe",
-                        Map.of("idReporte", "No existe un caso con ese id")));
+                .orElseThrow(() -> {
+                    logger.warn("Adopcion rechazada: el caso ID {} no existe", datos.idReporte());
+                    return new AdopcionException(HttpStatus.NOT_FOUND,
+                            "El caso no existe",
+                            Map.of("idReporte", "No existe un caso con ese id"));
+                });
 
         if (!ESTADO_CERRADO.equals(reporte.getEstado())) {
+            logger.warn("Adopcion rechazada: el caso ID {} no esta cerrado (estado {})",
+                    datos.idReporte(), reporte.getEstado());
             throw new AdopcionException(HttpStatus.CONFLICT,
                     "Solo se puede registrar la adopción de un caso cerrado",
                     Map.of("idReporte", "El caso debe estar resuelto"));
         }
 
         if (adopcionRepository.existsByIdReporte(datos.idReporte())) {
+            logger.warn("Adopcion rechazada: el caso ID {} ya tiene una adopcion", datos.idReporte());
             throw new AdopcionException(HttpStatus.CONFLICT,
                     "Este caso ya tiene una adopción registrada",
                     Map.of("idReporte", "El caso ya fue adoptado"));
@@ -89,7 +104,10 @@ public class AdopcionService {
         adopcion.setFechaAdopcion(datos.fechaAdopcion());
         adopcion.setObservaciones(datos.observaciones());
 
-        return adopcionRepository.save(adopcion);
+        Adopcion guardada = adopcionRepository.save(adopcion);
+        logger.info("Adopcion ID {} registrada por organizacion ID {} para el caso ID {}",
+                guardada.getIdAdopcion(), organizacion.getIdOrganizacion(), datos.idReporte());
+        return guardada;
     }
 
     /** Adopción por id, solo si el solicitante es la organización o el reportador del caso. */
@@ -112,6 +130,8 @@ public class AdopcionService {
 
     private void exigirVisibilidad(Adopcion adopcion, Long idSolicitante) {
         if (idSolicitante == null || !esInvolucrado(adopcion, idSolicitante)) {
+            logger.warn("Consulta de adopcion ID {} rechazada para el solicitante ID {}",
+                    adopcion.getIdAdopcion(), idSolicitante);
             throw new AdopcionException(HttpStatus.FORBIDDEN,
                     "No puedes consultar los datos de esta adopción",
                     Map.of("adopcion", "Solo la organización y quien reportó el caso pueden consultarla"));
@@ -140,6 +160,7 @@ public class AdopcionService {
         violaciones.stream()
                 .sorted((a, b) -> a.getMessage().compareTo(b.getMessage()))
                 .forEach(v -> errores.putIfAbsent(v.getPropertyPath().toString(), v.getMessage()));
+        logger.warn("Adopcion rechazada por validacion: {} campo(s) con error", errores.size());
         throw new AdopcionException(HttpStatus.BAD_REQUEST, "Revisa los datos del formulario", errores);
     }
 

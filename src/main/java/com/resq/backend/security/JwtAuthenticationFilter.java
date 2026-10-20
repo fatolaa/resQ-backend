@@ -6,6 +6,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -26,6 +28,8 @@ import java.util.List;
  * los demas controladores.
  */
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private static final String PREFIJO_BEARER = "Bearer ";
     private static final String PREFIJO_ROL = "ROLE_";
@@ -55,11 +59,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = cabecera.substring(PREFIJO_BEARER.length());
         Long idUsuario = jwtService.extraerIdUsuarioSiEsValido(token);
         if (idUsuario == null) {
+            logger.warn("Token JWT invalido o vencido en peticion a {}", peticion.getRequestURI());
             SecurityContextHolder.clearContext();
             return;
         }
 
-        usuarioRepository.findById(idUsuario).ifPresent(usuario -> registrarEnContexto(usuario, peticion));
+        usuarioRepository.findById(idUsuario)
+                .ifPresentOrElse(
+                        usuario -> registrarEnContexto(usuario, peticion),
+                        () -> logger.warn("Token valido pero el usuario ID {} ya no existe", idUsuario));
     }
 
     private void registrarEnContexto(Usuario usuario, HttpServletRequest peticion) {
@@ -70,5 +78,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String.valueOf(usuario.getIdUsuario()), null, List.of(autoridad));
         autenticacion.setDetails(usuario.getEmail());
         SecurityContextHolder.getContext().setAuthentication(autenticacion);
+        logger.debug("Peticion autenticada: usuario ID {} con rol {}", usuario.getIdUsuario(), usuario.getRol());
     }
 }
