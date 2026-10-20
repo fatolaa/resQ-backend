@@ -66,6 +66,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/usuarios").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
 
+                        // HU-38a: el handshake del WebSocket se autentica en el frame STOMP
+                        // CONNECT (JwtChannelInterceptor), no por header HTTP; por eso el
+                        // upgrade en /ws tiene que ser publico a nivel de Spring Security.
+                        .requestMatchers("/ws", "/ws/**").permitAll()
+
                         // HU-10: la foto se muestra con un <img> en el mapa del landing, que es
                         // publico. Un <img> no pasa por el interceptor de Angular, asi que nunca
                         // manda Authorization: si esto exigiera sesion, la imagen no se veria.
