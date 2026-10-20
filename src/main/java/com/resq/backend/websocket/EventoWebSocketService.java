@@ -26,8 +26,8 @@ public class EventoWebSocketService {
         if (idUsuario == null || evento == null) {
             return;
         }
-        replayStore.guardar(idUsuario, evento);
-        mensajeria.convertAndSend(SalaWebSocket.deUsuario(idUsuario), evento);
+        ReplayEvento replay = replayStore.guardar(idUsuario, evento);
+        mensajeria.convertAndSend(SalaWebSocket.deUsuario(idUsuario), replay.evento().conId(replay.id()));
     }
 
     /** Evento de caso (chat/presencia): va a la sala del caso. */
@@ -45,7 +45,7 @@ public class EventoWebSocketService {
     public int reenviarPendientes(Long idUsuario, long ultimoId) {
         List<ReplayEvento> pendientes = replayStore.desde(idUsuario, ultimoId);
         for (ReplayEvento replay : pendientes) {
-            mensajeria.convertAndSend(SalaWebSocket.deUsuario(idUsuario), replay.evento());
+            mensajeria.convertAndSend(SalaWebSocket.deUsuario(idUsuario), replay.evento().conId(replay.id()));
         }
         return pendientes.size();
     }

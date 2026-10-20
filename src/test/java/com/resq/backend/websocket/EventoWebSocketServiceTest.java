@@ -4,12 +4,12 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -37,7 +37,12 @@ class EventoWebSocketServiceTest {
 
         servicio.aUsuario(7L, evento);
 
-        verify(mensajeria).convertAndSend("/topic/usuarios/7", evento);
+        ArgumentCaptor<EventoWebSocket> captor = ArgumentCaptor.forClass(EventoWebSocket.class);
+        verify(mensajeria).convertAndSend(eq("/topic/usuarios/7"), captor.capture());
+        EventoWebSocket enviado = captor.getValue();
+        assertThat(enviado.id()).isEqualTo(1L);
+        assertThat(enviado.tipo()).isEqualTo(TipoEventoWebSocket.NOTIFICACION_NUEVA);
+        assertThat(enviado.datos()).isEqualTo("x");
         assertThat(replayStore.ultimoId(7L)).isEqualTo(1L);
     }
 
@@ -62,6 +67,11 @@ class EventoWebSocketServiceTest {
         int reenviados = servicio.reenviarPendientes(7L, 1L);
 
         assertThat(reenviados).isEqualTo(2);
-        verify(mensajeria, times(5)).convertAndSend(eq("/topic/usuarios/7"), any(EventoWebSocket.class));
+
+        ArgumentCaptor<EventoWebSocket> captor = ArgumentCaptor.forClass(EventoWebSocket.class);
+        verify(mensajeria, times(5)).convertAndSend(eq("/topic/usuarios/7"), captor.capture());
+        assertThat(captor.getAllValues())
+                .extracting(EventoWebSocket::id)
+                .containsExactly(1L, 2L, 3L, 2L, 3L);
     }
 }
