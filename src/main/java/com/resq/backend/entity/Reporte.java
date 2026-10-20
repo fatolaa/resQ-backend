@@ -55,7 +55,7 @@ public class Reporte {
 
     // HU-19: campos de revisión, controlados solo por el backend
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    @Pattern(regexp = "PENDIENTE|APROBADO|RECHAZADO", message = "Estado de revisión inválido")
+    @Pattern(regexp = "PENDIENTE_REVISION|APROBADO|RECHAZADO", message = "Estado de revisión inválido")
     @Column(name = "estado_revision")
     private String estadoRevision;
 
