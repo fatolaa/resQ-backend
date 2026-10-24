@@ -2,6 +2,7 @@ package com.resq.backend.service;
 
 import com.resq.backend.dto.RechazarSolicitudRequestDTO;
 import com.resq.backend.entity.EstadoSolicitudVoluntario;
+import com.resq.backend.entity.Notificacion;
 import com.resq.backend.entity.SolicitudVoluntario;
 import com.resq.backend.entity.Usuario;
 import com.resq.backend.repository.SolicitudVoluntarioRepository;
@@ -134,7 +135,8 @@ class SolicitudVoluntarioServiceTest {
         assertEquals(99L, dto.revisadoPorId());
         assertNotNull(dto.fechaResolucion());
         verify(usuarioRepository).save(usuario);
-        verify(notificacionService).crearNotificacion(eq(1L), anyString(), anyString());
+        verify(notificacionService).crearNotificacion(eq(1L), isNull(), eq(10L),
+                eq(Notificacion.SOLICITUD_APROBADA), anyString());
         verify(emailService).enviar(eq("ana@correo.com"), anyString(), anyString());
     }
 
@@ -158,7 +160,8 @@ class SolicitudVoluntarioServiceTest {
         assertEquals("RECHAZADA", dto.estado());
         assertEquals("documentacion incompleta", dto.motivoRechazo());
         assertEquals("USUARIO", usuario.getRol());
-        verify(notificacionService).crearNotificacion(eq(1L), anyString(), anyString());
+        verify(notificacionService).crearNotificacion(eq(1L), isNull(), eq(10L),
+                eq(Notificacion.SOLICITUD_RECHAZADA), anyString());
     }
 
     @Test

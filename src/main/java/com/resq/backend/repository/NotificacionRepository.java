@@ -10,4 +10,7 @@ import java.util.List;
 public interface NotificacionRepository extends JpaRepository<Notificacion, Long> {
 
     List<Notificacion> findByIdUsuarioOrderByFechaCreacionDesc(Long idUsuario);
+
+    /** HU-37: la bandeja muestra solo las notificaciones sin archivar, de la mas reciente a la mas antigua. */
+    List<Notificacion> findByIdUsuarioAndArchivadaFalseOrderByFechaCreacionDesc(Long idUsuario);
 }
