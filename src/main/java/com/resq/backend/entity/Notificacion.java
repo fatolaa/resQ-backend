@@ -11,6 +11,8 @@ public class Notificacion {
 
     public static final String SOLICITUD_APROBADA = "SOLICITUD_APROBADA";
     public static final String SOLICITUD_RECHAZADA = "SOLICITUD_RECHAZADA";
+    public static final String SOLICITUD_VOLUNTARIO = "SOLICITUD_VOLUNTARIO";
+    public static final String SISTEMA = "SISTEMA";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -23,6 +25,10 @@ public class Notificacion {
     @Column(name = "id_reporte")
     private Long idReporte;
 
+    /** HU-37: referencia a la solicitud de voluntario que origino el aviso. */
+    @Column(name = "id_solicitud")
+    private Long idSolicitud;
+
     @Column(name = "tipo", nullable = false, length = 50)
     private String tipo;
 
@@ -31,6 +37,10 @@ public class Notificacion {
 
     @Column(name = "leida", nullable = false)
     private boolean leida;
+
+    /** HU-37: una notificacion archivada sale de la bandeja, pero no se borra. */
+    @Column(name = "archivada")
+    private boolean archivada;
 
     @Column(name = "fecha_creacion")
     private LocalDateTime fechaCreacion;
@@ -43,6 +53,11 @@ public class Notificacion {
         this.idReporte = idReporte;
         this.tipo = tipo;
         this.mensaje = mensaje;
+    }
+
+    public Notificacion(Long idUsuario, Long idReporte, Long idSolicitud, String tipo, String mensaje) {
+        this(idUsuario, idReporte, tipo, mensaje);
+        this.idSolicitud = idSolicitud;
     }
 
     @PrePersist
@@ -76,6 +91,14 @@ public class Notificacion {
         this.idReporte = idReporte;
     }
 
+    public Long getIdSolicitud() {
+        return idSolicitud;
+    }
+
+    public void setIdSolicitud(Long idSolicitud) {
+        this.idSolicitud = idSolicitud;
+    }
+
     public String getTipo() {
         return tipo;
     }
@@ -98,6 +121,14 @@ public class Notificacion {
 
     public void setLeida(boolean leida) {
         this.leida = leida;
+    }
+
+    public boolean isArchivada() {
+        return archivada;
+    }
+
+    public void setArchivada(boolean archivada) {
+        this.archivada = archivada;
     }
 
     public LocalDateTime getFechaCreacion() {

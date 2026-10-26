@@ -4,6 +4,7 @@ import com.resq.backend.dto.RechazarSolicitudRequestDTO;
 import com.resq.backend.dto.SolicitudVoluntarioDetalleDTO;
 import com.resq.backend.dto.SolicitudVoluntarioResumenDTO;
 import com.resq.backend.entity.EstadoSolicitudVoluntario;
+import com.resq.backend.entity.Notificacion;
 import com.resq.backend.entity.SolicitudVoluntario;
 import com.resq.backend.entity.Usuario;
 import com.resq.backend.repository.SolicitudVoluntarioRepository;
@@ -146,16 +147,20 @@ public class SolicitudVoluntarioService {
         try {
             String asunto;
             String mensaje;
+            String tipo;
             if (solicitud.getEstado() == EstadoSolicitudVoluntario.APROBADA) {
                 asunto = "Tu solicitud para ser voluntario fue aprobada";
                 mensaje = "??Felicitaciones! Tu solicitud para ser voluntario en ResQ ha sido aprobada. Ya tienes el rol VOLUNTARIO.";
+                tipo = Notificacion.SOLICITUD_APROBADA;
             } else {
                 asunto = "Tu solicitud para ser voluntario fue rechazada";
                 String motivo = solicitud.getMotivoRechazo() != null ? solicitud.getMotivoRechazo() : "";
                 mensaje = "Tu solicitud para ser voluntario en ResQ ha sido rechazada. Motivo: " + motivo;
+                tipo = Notificacion.SOLICITUD_RECHAZADA;
             }
 
-            notificacionService.crearNotificacion(solicitud.getUsuario().getIdUsuario(), asunto, mensaje);
+            notificacionService.crearNotificacion(solicitud.getUsuario().getIdUsuario(), null,
+                    solicitud.getIdSolicitud(), tipo, mensaje);
             emailService.enviar(solicitud.getUsuario().getEmail(), asunto, mensaje);
             solicitud.setNotificada(true);
             solicitudRepository.save(solicitud);
