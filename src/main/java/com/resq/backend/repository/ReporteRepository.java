@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -57,4 +58,11 @@ public interface ReporteRepository extends JpaRepository<Reporte, Long> {
 
     /** Casos que ninguna organización ha tomado todavía (para "Aceptar caso"). */
     List<Reporte> findByIdOrganizacionIsNull();
+
+    // ============================================================
+    // HU-33: métricas de casos y reportes
+    // ============================================================
+
+    /** Reportes creados dentro de un periodo (ambos extremos inclusive). */
+    List<Reporte> findByFechaCreacionBetween(LocalDateTime inicio, LocalDateTime fin);
 }
