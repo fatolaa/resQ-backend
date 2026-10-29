@@ -132,8 +132,11 @@ public class SecurityConfig {
                         // HU-34: las metricas de la comunidad son exclusivas del administrador.
                         .requestMatchers("/api/metricas", "/api/metricas/**").hasRole(ROL_ADMIN)
 
+                        // HU-39: El chat requiere que el usuario esté logueado para ver sus conversaciones.
+                        .requestMatchers("/api/chat/**").authenticated()
+
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
-}       
+}
