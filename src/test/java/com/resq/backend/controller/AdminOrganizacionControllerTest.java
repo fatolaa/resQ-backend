@@ -2,12 +2,14 @@ package com.resq.backend.controller;
 
 import com.resq.backend.config.SecurityConfig;
 import com.resq.backend.dto.OrganizacionAdminDTO;
+import com.resq.backend.dto.RevisionOrganizacionDTO;
 import com.resq.backend.entity.Usuario;
 import com.resq.backend.exception.OrganizacionException;
 import com.resq.backend.repository.UsuarioRepository;
 import com.resq.backend.security.JwtService;
 import com.resq.backend.security.RestAuthenticationEntryPoint;
 import com.resq.backend.service.AdminOrganizacionService;
+import com.resq.backend.service.DocumentoStorageService.DocumentoAlmacenado;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
@@ -31,6 +34,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -180,5 +185,65 @@ class AdminOrganizacionControllerTest {
 
         mockMvc.perform(get(URL + "/99").header("Authorization", "Bearer " + TOKEN_ADMIN))
                 .andExpect(status().isNotFound());
+    }
+
+    // ---------------------------------------------------------------- HU-32
+
+    @Test
+    @DisplayName("HU-32: el administrador descarga el documento de verificacion, sin cache")
+    void documento() throws Exception {
+        byte[] pdf = {'%', 'P', 'D', 'F'};
+        when(adminOrganizacionService.documento(7L)).thenReturn(new DocumentoAlmacenado(
+                new ByteArrayResource(pdf), "application/pdf", "abc.pdf"));
+
+        mockMvc.perform(get(URL + "/7/documento").header("Authorization", "Bearer " + TOKEN_ADMIN))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType("application/pdf"))
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(content().bytes(pdf));
+    }
+
+    @Test
+    @DisplayName("HU-32: un usuario que no es administrador no puede descargar el documento (403)")
+    void documentoNoAdmin() throws Exception {
+        mockMvc.perform(get(URL + "/7/documento").header("Authorization", "Bearer " + TOKEN_USUARIO))
+                .andExpect(status().isForbidden());
+        verify(adminOrganizacionService, never()).documento(anyLong());
+    }
+
+    @Test
+    @DisplayName("HU-32: el historial lista quien aprobo, rechazo o reenvio y cuando")
+    void historial() throws Exception {
+        when(adminOrganizacionService.historial(7L)).thenReturn(List.of(
+                new RevisionOrganizacionDTO(2L, "RECHAZADA", "Falta documento", 1L, "Admin Demo",
+                        LocalDateTime.of(2026, 10, 21, 18, 0))));
+
+        mockMvc.perform(get(URL + "/7/revisiones").header("Authorization", "Bearer " + TOKEN_ADMIN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].accion").value("RECHAZADA"))
+                .andExpect(jsonPath("$[0].nota").value("Falta documento"))
+                .andExpect(jsonPath("$[0].nombreUsuario").value("Admin Demo"));
+    }
+
+    @Test
+    @DisplayName("HU-32: rechazar sin motivo responde 400 con el motivo del error")
+    void rechazarSinMotivo() throws Exception {
+        when(adminOrganizacionService.rechazar(8L, 1L, null)).thenThrow(new OrganizacionException(
+                HttpStatus.BAD_REQUEST, "Indica el motivo del rechazo", Map.of("nota", "obligatorio")));
+
+        mockMvc.perform(put(URL + "/8/rechazar").header("Authorization", "Bearer " + TOKEN_ADMIN))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Indica el motivo del rechazo"));
+    }
+
+    @Test
+    @DisplayName("HU-32: una nota de mas de 500 caracteres se rechaza antes de llegar al servicio")
+    void notaMuyLarga() throws Exception {
+        String nota = "x".repeat(501);
+
+        mockMvc.perform(put(URL + "/8/rechazar").header("Authorization", "Bearer " + TOKEN_ADMIN)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"nota\":\"" + nota + "\"}"))
+                .andExpect(status().isBadRequest());
+        verify(adminOrganizacionService, never()).rechazar(anyLong(), anyLong(), any());
     }
 }

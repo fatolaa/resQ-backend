@@ -65,12 +65,12 @@ class OrganizacionControllerTest {
 
     private ResponseEntity<?> registrar(Long idRepresentante, MultipartFile logo) {
         return controller.registrar(idRepresentante, "Refugio Patitas", "REFUGIO", "Calle 1", "70123456",
-                "a@patitas.org", "desc", null, null, logo);
+                "a@patitas.org", "desc", null, null, logo, null);
     }
 
     private OrganizacionRequestDTO datosEnviadosAlServicio(MultipartFile logoEsperado) {
         ArgumentCaptor<OrganizacionRequestDTO> captor = ArgumentCaptor.forClass(OrganizacionRequestDTO.class);
-        verify(servicio).registrar(captor.capture(), org.mockito.ArgumentMatchers.eq(logoEsperado));
+        verify(servicio).registrar(captor.capture(), org.mockito.ArgumentMatchers.eq(logoEsperado), any());
         return captor.getValue();
     }
 
@@ -207,7 +207,7 @@ class OrganizacionControllerTest {
 
     private ResponseEntity<?> editar(Long idRepresentante, MultipartFile logo, boolean quitarLogo) {
         return controller.actualizar(1L, idRepresentante, "Refugio Patitas", "REFUGIO", "Calle 1", "70123456",
-                "a@patitas.org", "desc", "Lun-Sáb 9-18", "Cochabamba, Quillacollo", logo, quitarLogo);
+                "a@patitas.org", "desc", "Lun-Sáb 9-18", "Cochabamba, Quillacollo", logo, quitarLogo, null);
     }
 
     @Test
@@ -223,7 +223,7 @@ class OrganizacionControllerTest {
 
         ArgumentCaptor<OrganizacionRequestDTO> captor = ArgumentCaptor.forClass(OrganizacionRequestDTO.class);
         ArgumentCaptor<Boolean> quitarLogo = ArgumentCaptor.forClass(Boolean.class);
-        verify(servicio).actualizar(org.mockito.ArgumentMatchers.eq(1L), captor.capture(), any(), quitarLogo.capture());
+        verify(servicio).actualizar(org.mockito.ArgumentMatchers.eq(1L), captor.capture(), any(), quitarLogo.capture(), any());
         assertThat(captor.getValue().idRepresentante()).isEqualTo(7L);
         assertThat(captor.getValue().horarios()).isEqualTo("Lun-Sáb 9-18");
         assertThat(captor.getValue().zonasCobertura()).isEqualTo("Cochabamba, Quillacollo");
@@ -237,7 +237,7 @@ class OrganizacionControllerTest {
         when(servicio.actualizar(any(), any(), any(), anyBoolean(), any())).thenReturn(organizacion("X"));
 
         ResponseEntity<?> respuesta = controller.actualizar(1L, 7L, "Refugio Patitas", "REFUGIO", "Calle 1",
-                "70123456", "a@patitas.org", "desc", null, null, logo, true);
+                "70123456", "a@patitas.org", "desc", null, null, logo, true, null);
 
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
         ArgumentCaptor<Boolean> quitarLogo = ArgumentCaptor.forClass(Boolean.class);
@@ -264,9 +264,32 @@ class OrganizacionControllerTest {
         editar(7L, null, false);
 
         ArgumentCaptor<OrganizacionRequestDTO> captor = ArgumentCaptor.forClass(OrganizacionRequestDTO.class);
-        verify(servicio).actualizar(org.mockito.ArgumentMatchers.eq(1L), captor.capture(), any(), anyBoolean());
+        verify(servicio).actualizar(org.mockito.ArgumentMatchers.eq(1L), captor.capture(), any(), anyBoolean(), any());
         assertThat(captor.getValue().idRepresentante()).isEqualTo(7L);
         assertThat(captor.getValue().horarios()).isEqualTo("Lun-Sáb 9-18");
         assertThat(captor.getValue().zonasCobertura()).isEqualTo("Cochabamba, Quillacollo");
+    }
+
+    // ---------------------------------------------------------------- HU-32: reenviar
+
+    @Test
+    @DisplayName("HU-32: el representante reenvia su organizacion con la identidad del token")
+    void reenviar() {
+        autenticarComo("7", "USUARIO");
+        when(servicio.reenviar(1L, 7L)).thenReturn(organizacion("PENDIENTE_VERIFICACION"));
+
+        ResponseEntity<?> respuesta = controller.reenviar(1L);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
+        verify(servicio).reenviar(1L, 7L);
+    }
+
+    @Test
+    @DisplayName("HU-32: sin sesion no se puede reenviar (401)")
+    void reenviarSinSesion() {
+        ResponseEntity<?> respuesta = controller.reenviar(1L);
+
+        assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        verify(servicio, never()).reenviar(any(), any());
     }
 }
