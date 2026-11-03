@@ -129,6 +129,10 @@ public class SecurityConfig {
                         // limita la consulta a la organización y a quien reportó el caso.
                         .requestMatchers("/api/adopciones", "/api/adopciones/**").authenticated()
 
+                        // HU-25: la administracion de organizaciones (y cualquier otra ruta
+                        // /api/admin/**) es exclusiva del administrador.
+                        .requestMatchers("/api/admin/**").hasRole(ROL_ADMIN)
+
                         // HU-34: las metricas de la comunidad son exclusivas del administrador.
                         .requestMatchers("/api/metricas", "/api/metricas/**").hasRole(ROL_ADMIN)
 
