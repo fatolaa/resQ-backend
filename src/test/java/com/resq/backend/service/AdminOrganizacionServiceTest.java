@@ -39,7 +39,8 @@ class AdminOrganizacionServiceTest {
     void setUp() {
         organizacionRepository = mock(OrganizacionRepository.class);
         usuarioRepository = mock(UsuarioRepository.class);
-        servicio = new AdminOrganizacionService(organizacionRepository, usuarioRepository);
+        servicio = new AdminOrganizacionService(organizacionRepository, usuarioRepository,
+                mock(DocumentoStorageService.class));
 
         when(usuarioRepository.findById(ID_ADMIN)).thenReturn(Optional.of(usuario(ID_ADMIN, "Admin Demo")));
         when(usuarioRepository.findById(ID_REPRESENTANTE))

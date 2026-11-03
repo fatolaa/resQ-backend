@@ -57,6 +57,13 @@ public class Organizacion {
     @Column(name = "fecha_registro")
     private LocalDateTime fechaRegistro;
 
+    // ---- HU-32: documento de verificacion ----
+    // Nombre del archivo en el almacenamiento privado de documentos (DocumentoStorageService).
+    // No se expone: el JSON solo dice si hay uno, y el administrador lo descarga por su endpoint.
+    @JsonIgnore
+    @Column(name = "documento", length = 100)
+    private String documento;
+
     // ---- HU-25: ultima revision de un administrador ----
     // Quien aprobo o rechazo la organizacion y cuando. Los llena solo el backend y no se
     // exponen en el JSON publico (directorio, ficha): el panel admin los recibe en su DTO.
@@ -212,5 +219,21 @@ public class Organizacion {
     // HU-25
     public void setFechaRevision(LocalDateTime fechaRevision) {
         this.fechaRevision = fechaRevision;
+    }
+
+    // HU-32
+    public String getDocumento() {
+        return documento;
+    }
+
+    // HU-32
+    public void setDocumento(String documento) {
+        this.documento = documento;
+    }
+
+    /** HU-32: si la organizacion adjunto su documento de verificacion. */
+    @JsonProperty("tieneDocumento")
+    public boolean tieneDocumento() {
+        return documento != null && !documento.isBlank();
     }
 }

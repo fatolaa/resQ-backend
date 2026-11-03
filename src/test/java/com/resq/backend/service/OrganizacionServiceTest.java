@@ -63,6 +63,7 @@ class OrganizacionServiceTest {
                 organizacionRepository,
                 usuarioRepository,
                 new FotoStorageService(carpetaLogos.toString(), 1024),
+                new DocumentoStorageService(carpetaLogos.resolve("documentos").toString(), 1024),
                 emailService,
                 Validation.buildDefaultValidatorFactory().getValidator());
     }

@@ -5,9 +5,15 @@ import com.resq.backend.dto.OrganizacionAdminDTO;
 import com.resq.backend.exception.OrganizacionException;
 import com.resq.backend.security.UsuarioAutenticado;
 import com.resq.backend.service.AdminOrganizacionService;
+import com.resq.backend.service.DocumentoStorageService.DocumentoAlmacenado;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.Resource;
+import org.springframework.http.CacheControl;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,6 +32,7 @@ import java.util.Map;
  *
  * - GET /api/admin/organizaciones?estado=PENDIENTE_VERIFICACION   listado (estado opcional)
  * - GET /api/admin/organizaciones/{id}                            detalle en cualquier estado
+ * - GET /api/admin/organizaciones/{id}/documento                  documento de verificacion (HU-32)
  * - PUT /api/admin/organizaciones/{id}/aprobar                    pasa a VERIFICADA
  * - PUT /api/admin/organizaciones/{id}/rechazar                   pasa a RECHAZADA
  */
@@ -49,6 +56,21 @@ public class AdminOrganizacionController {
     @GetMapping("/{idOrganizacion}")
     public ResponseEntity<OrganizacionAdminDTO> detalle(@PathVariable Long idOrganizacion) {
         return ResponseEntity.ok(adminOrganizacionService.detalle(idOrganizacion));
+    }
+
+    /**
+     * HU-32: descarga el documento de verificacion. Va "inline" para que el navegador lo
+     * muestre (PDF o imagen) y sin cache publica, porque es un documento privado.
+     */
+    @GetMapping("/{idOrganizacion}/documento")
+    public ResponseEntity<Resource> documento(@PathVariable Long idOrganizacion) {
+        DocumentoAlmacenado documento = adminOrganizacionService.documento(idOrganizacion);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(documento.contentType()))
+                .cacheControl(CacheControl.noStore())
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.inline().filename(documento.nombre()).build().toString())
+                .body(documento.recurso());
     }
 
     @PutMapping("/{idOrganizacion}/aprobar")

@@ -80,7 +80,7 @@ class OrganizacionControllerTest {
     @DisplayName("registra y responde 201 con la organización y si salió el correo")
     void registraYResponde201() {
         OrganizacionRegistradaDTO registrada = new OrganizacionRegistradaDTO(organizacion(EstadoVerificacion.PENDIENTE), true);
-        when(servicio.registrar(any(), any())).thenReturn(registrada);
+        when(servicio.registrar(any(), any(), any())).thenReturn(registrada);
 
         ResponseEntity<?> respuesta = registrar(7L, null);
 
@@ -91,7 +91,7 @@ class OrganizacionControllerTest {
     @Test
     @DisplayName("sin sesión con token, usa el idRepresentante que manda el cliente")
     void sinTokenUsaElIdDelCliente() {
-        when(servicio.registrar(any(), any())).thenReturn(new OrganizacionRegistradaDTO(organizacion("X"), true));
+        when(servicio.registrar(any(), any(), any())).thenReturn(new OrganizacionRegistradaDTO(organizacion("X"), true));
 
         registrar(7L, null);
 
@@ -103,7 +103,7 @@ class OrganizacionControllerTest {
     void anonimoNoCuentaComoUsuario() {
         SecurityContextHolder.getContext().setAuthentication(new AnonymousAuthenticationToken(
                 "clave", "anonymousUser", List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))));
-        when(servicio.registrar(any(), any())).thenReturn(new OrganizacionRegistradaDTO(organizacion("X"), true));
+        when(servicio.registrar(any(), any(), any())).thenReturn(new OrganizacionRegistradaDTO(organizacion("X"), true));
 
         registrar(7L, null);
 
@@ -114,7 +114,7 @@ class OrganizacionControllerTest {
     @DisplayName("con token válido, el representante es el del token aunque el cliente no mande id")
     void conTokenUsaElIdDelToken() {
         autenticarComo("7", "USUARIO");
-        when(servicio.registrar(any(), any())).thenReturn(new OrganizacionRegistradaDTO(organizacion("X"), true));
+        when(servicio.registrar(any(), any(), any())).thenReturn(new OrganizacionRegistradaDTO(organizacion("X"), true));
 
         registrar(null, null);
 
@@ -129,14 +129,14 @@ class OrganizacionControllerTest {
         ResponseEntity<?> respuesta = registrar(99L, null);
 
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        verify(servicio, never()).registrar(any(), any());
+        verify(servicio, never()).registrar(any(), any(), any());
     }
 
     @Test
     @DisplayName("el logo recibido se pasa al servicio junto con los datos")
     void pasaElLogoAlServicio() {
         MultipartFile logo = mock(MultipartFile.class);
-        when(servicio.registrar(any(), any())).thenReturn(new OrganizacionRegistradaDTO(organizacion("X"), true));
+        when(servicio.registrar(any(), any(), any())).thenReturn(new OrganizacionRegistradaDTO(organizacion("X"), true));
 
         registrar(7L, logo);
 
@@ -214,7 +214,7 @@ class OrganizacionControllerTest {
     @DisplayName("edita la ficha y pasa los datos y el logo al servicio")
     void editaYPasaLosDatosAlServicio() {
         Organizacion actualizada = organizacion(EstadoVerificacion.PENDIENTE);
-        when(servicio.actualizar(any(), any(), any(), anyBoolean())).thenReturn(actualizada);
+        when(servicio.actualizar(any(), any(), any(), anyBoolean(), any())).thenReturn(actualizada);
 
         ResponseEntity<?> respuesta = editar(7L, null, false);
 
@@ -234,14 +234,14 @@ class OrganizacionControllerTest {
     @DisplayName("pasa quitarLogo=true cuando el cliente pide quitar el logo")
     void pasaQuitarLogoAlServicio() {
         MultipartFile logo = mock(MultipartFile.class);
-        when(servicio.actualizar(any(), any(), any(), anyBoolean())).thenReturn(organizacion("X"));
+        when(servicio.actualizar(any(), any(), any(), anyBoolean(), any())).thenReturn(organizacion("X"));
 
         ResponseEntity<?> respuesta = controller.actualizar(1L, 7L, "Refugio Patitas", "REFUGIO", "Calle 1",
                 "70123456", "a@patitas.org", "desc", null, null, logo, true);
 
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.OK);
         ArgumentCaptor<Boolean> quitarLogo = ArgumentCaptor.forClass(Boolean.class);
-        verify(servicio).actualizar(any(), any(), org.mockito.ArgumentMatchers.eq(logo), quitarLogo.capture());
+        verify(servicio).actualizar(any(), any(), org.mockito.ArgumentMatchers.eq(logo), quitarLogo.capture(), any());
         assertThat(quitarLogo.getValue()).isTrue();
     }
 
@@ -253,13 +253,13 @@ class OrganizacionControllerTest {
         ResponseEntity<?> respuesta = editar(7L, null, false);
 
         assertThat(respuesta.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN);
-        verify(servicio, never()).actualizar(any(), any(), any(), anyBoolean());
+        verify(servicio, never()).actualizar(any(), any(), any(), anyBoolean(), any());
     }
 
     @Test
     @DisplayName("sin token usa el idRepresentante del cliente para la edición")
     void sinTokenUsaElIdDelClienteParaEditar() {
-        when(servicio.actualizar(any(), any(), any(), anyBoolean())).thenReturn(organizacion("X"));
+        when(servicio.actualizar(any(), any(), any(), anyBoolean(), any())).thenReturn(organizacion("X"));
 
         editar(7L, null, false);
 

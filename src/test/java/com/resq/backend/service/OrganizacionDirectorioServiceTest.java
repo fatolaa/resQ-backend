@@ -35,6 +35,7 @@ class OrganizacionDirectorioServiceTest {
                 organizacionRepository,
                 mock(UsuarioRepository.class),
                 mock(FotoStorageService.class),
+                mock(DocumentoStorageService.class),
                 mock(EmailService.class),
                 mock(Validator.class));
     }

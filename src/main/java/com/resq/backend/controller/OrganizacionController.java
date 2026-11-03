@@ -22,11 +22,11 @@ import java.util.Optional;
 /**
  * HU-20: registro de organizaciones. HU-28: edición de la ficha. HU-29: directorio.
  *
- * - POST /api/organizaciones                        registra (multipart: campos + logo opcional)
+ * - POST /api/organizaciones                        registra (multipart: campos + logo y documento opcionales)
  * - GET  /api/organizaciones                        directorio de verificadas (filtros: tipo, zona)
  * - GET  /api/organizaciones/{id}                   ficha de una organización verificada
  * - GET  /api/organizaciones/representante/{id}     organización de un usuario (con su estado)
- * - PUT  /api/organizaciones/{id}                   edita la ficha (multipart: campos + logo opcional + quitarLogo)
+ * - PUT  /api/organizaciones/{id}                   edita la ficha (multipart: campos + logo/documento opcionales + quitarLogo)
  * El logo se guarda con el servicio de fotos de HU-10 y se ve en GET /api/reportes/fotos/{nombre}.
  */
 @RestController
@@ -56,7 +56,8 @@ public class OrganizacionController {
             @RequestParam(name = "descripcion", required = false) String descripcion,
             @RequestParam(name = "horarios", required = false) String horarios,
             @RequestParam(name = "zonasCobertura", required = false) String zonasCobertura,
-            @RequestParam(name = "logo", required = false) MultipartFile logo) {
+            @RequestParam(name = "logo", required = false) MultipartFile logo,
+            @RequestParam(name = "documento", required = false) MultipartFile documento) {
 
         Optional<Long> idToken = UsuarioAutenticado.idActual();
         if (idToken.isPresent() && idRepresentante != null && !idToken.get().equals(idRepresentante)) {
@@ -70,7 +71,7 @@ public class OrganizacionController {
         OrganizacionRegistradaDTO registrada = organizacionService.registrar(
                 new OrganizacionRequestDTO(representante, nombre, tipo, direccion, telefono,
                         email, descripcion, horarios, zonasCobertura),
-                logo);
+                logo, documento);
         logger.info("Organizacion registrada para representante ID {}", representante);
         return ResponseEntity.status(HttpStatus.CREATED).body(registrada);
     }
@@ -92,7 +93,8 @@ public class OrganizacionController {
             @RequestParam(name = "horarios", required = false) String horarios,
             @RequestParam(name = "zonasCobertura", required = false) String zonasCobertura,
             @RequestParam(name = "logo", required = false) MultipartFile logo,
-            @RequestParam(name = "quitarLogo", required = false) boolean quitarLogo) {
+            @RequestParam(name = "quitarLogo", required = false) boolean quitarLogo,
+            @RequestParam(name = "documento", required = false) MultipartFile documento) {
 
         Optional<Long> idToken = UsuarioAutenticado.idActual();
         if (idToken.isPresent() && idRepresentante != null && !idToken.get().equals(idRepresentante)) {
@@ -105,7 +107,7 @@ public class OrganizacionController {
         Organizacion actualizada = organizacionService.actualizar(idOrganizacion,
                 new OrganizacionRequestDTO(representante, nombre, tipo, direccion, telefono,
                         email, descripcion, horarios, zonasCobertura),
-                logo, quitarLogo);
+                logo, quitarLogo, documento);
         logger.info("Organizacion ID {} actualizada por representante ID {}", idOrganizacion, representante);
         return ResponseEntity.ok(actualizada);
     }

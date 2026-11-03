@@ -38,11 +38,14 @@ public class AdminOrganizacionService {
 
     private final OrganizacionRepository organizacionRepository;
     private final UsuarioRepository usuarioRepository;
+    private final DocumentoStorageService documentoStorage;
 
     public AdminOrganizacionService(OrganizacionRepository organizacionRepository,
-                                    UsuarioRepository usuarioRepository) {
+                                    UsuarioRepository usuarioRepository,
+                                    DocumentoStorageService documentoStorage) {
         this.organizacionRepository = organizacionRepository;
         this.usuarioRepository = usuarioRepository;
+        this.documentoStorage = documentoStorage;
     }
 
     /**
@@ -78,6 +81,19 @@ public class AdminOrganizacionService {
     @Transactional(readOnly = true)
     public OrganizacionAdminDTO detalle(Long idOrganizacion) {
         return aDto(buscar(idOrganizacion));
+    }
+
+    /**
+     * HU-32: el documento de verificacion que adjunto la organizacion.
+     *
+     * @throws OrganizacionException 404 si la organizacion no existe o no tiene documento.
+     */
+    @Transactional(readOnly = true)
+    public DocumentoStorageService.DocumentoAlmacenado documento(Long idOrganizacion) {
+        Organizacion organizacion = buscar(idOrganizacion);
+        return documentoStorage.cargar(organizacion.getDocumento())
+                .orElseThrow(() -> new OrganizacionException(HttpStatus.NOT_FOUND,
+                        "La organización no adjuntó un documento", Map.of("documento", "Sin documento")));
     }
 
     @Transactional

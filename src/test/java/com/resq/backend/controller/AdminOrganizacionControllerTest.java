@@ -77,7 +77,7 @@ class AdminOrganizacionControllerTest {
 
     private static OrganizacionAdminDTO dto(long id, String estado) {
         return new OrganizacionAdminDTO(id, "Refugio Patitas", "REFUGIO", "Av. Heroínas 123", "70000000",
-                "patitas@resq.com", null, null, null, null, estado, LocalDateTime.of(2026, 10, 1, 10, 0),
+                "patitas@resq.com", null, null, null, null, false, estado, LocalDateTime.of(2026, 10, 1, 10, 0),
                 20L, "Ana Refugio", "ana@resq.com", null, null, null);
     }
 

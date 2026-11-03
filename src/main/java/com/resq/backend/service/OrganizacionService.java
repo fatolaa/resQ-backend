@@ -37,17 +37,20 @@ public class OrganizacionService {
     private final OrganizacionRepository organizacionRepository;
     private final UsuarioRepository usuarioRepository;
     private final FotoStorageService fotoStorage;
+    private final DocumentoStorageService documentoStorage;
     private final EmailService emailService;
     private final Validator validator;
 
     public OrganizacionService(OrganizacionRepository organizacionRepository,
                                UsuarioRepository usuarioRepository,
                                FotoStorageService fotoStorage,
+                               DocumentoStorageService documentoStorage,
                                EmailService emailService,
                                Validator validator) {
         this.organizacionRepository = organizacionRepository;
         this.usuarioRepository = usuarioRepository;
         this.fotoStorage = fotoStorage;
+        this.documentoStorage = documentoStorage;
         this.emailService = emailService;
         this.validator = validator;
     }
@@ -57,6 +60,15 @@ public class OrganizacionService {
      * confirmación. El correo es un efecto secundario: si falla, el registro se mantiene.
      */
     public OrganizacionRegistradaDTO registrar(OrganizacionRequestDTO solicitud, MultipartFile logo) {
+        return registrar(solicitud, logo, null);
+    }
+
+    /**
+     * HU-32: igual que {@link #registrar(OrganizacionRequestDTO, MultipartFile)}, con el
+     * documento de verificacion (opcional) que el administrador revisa antes de aprobar.
+     */
+    public OrganizacionRegistradaDTO registrar(OrganizacionRequestDTO solicitud, MultipartFile logo,
+                                               MultipartFile documento) {
         OrganizacionRequestDTO datos = normalizar(solicitud);
         validar(datos);
 
@@ -80,6 +92,8 @@ public class OrganizacionService {
 
         // El logo se valida y guarda antes de crear la organización: si es inválido no queda nada a medias.
         String nombreLogo = logo != null && !logo.isEmpty() ? guardarLogo(logo) : null;
+        String nombreDocumento = documento != null && !documento.isEmpty()
+                ? documentoStorage.guardar(documento) : null;
 
         Organizacion organizacion = new Organizacion();
         organizacion.setIdRepresentante(datos.idRepresentante());
@@ -92,6 +106,7 @@ public class OrganizacionService {
         organizacion.setHorarios(datos.horarios());
         organizacion.setZonasCobertura(datos.zonasCobertura());
         organizacion.setLogoUrl(nombreLogo == null ? null : RUTA_FOTOS + nombreLogo);
+        organizacion.setDocumento(nombreDocumento);
         organizacion.setEstadoVerificacion(EstadoVerificacion.PENDIENTE);
 
         Organizacion guardada = organizacionRepository.save(organizacion);
@@ -164,6 +179,15 @@ public class OrganizacionService {
      */
     public Organizacion actualizar(Long idOrganizacion, OrganizacionRequestDTO solicitud,
                                    MultipartFile logo, boolean quitarLogo) {
+        return actualizar(idOrganizacion, solicitud, logo, quitarLogo, null);
+    }
+
+    /**
+     * HU-32: ademas de la ficha, reemplaza el documento de verificacion si se sube uno nuevo
+     * (por ejemplo, para corregir lo que indico el administrador al rechazar).
+     */
+    public Organizacion actualizar(Long idOrganizacion, OrganizacionRequestDTO solicitud,
+                                   MultipartFile logo, boolean quitarLogo, MultipartFile documento) {
         OrganizacionRequestDTO datos = normalizar(solicitud);
         validar(datos);
 
@@ -189,6 +213,7 @@ public class OrganizacionService {
         }
 
         aplicarLogo(organizacion, logo, quitarLogo);
+        aplicarDocumento(organizacion, documento);
 
         organizacion.setNombre(datos.nombre());
         organizacion.setTipo(datos.tipo());
@@ -236,6 +261,16 @@ public class OrganizacionService {
             eliminarLogoActual(organizacion);
             organizacion.setLogoUrl(null);
         }
+    }
+
+    /** El nuevo documento se guarda antes de borrar el anterior, igual que el logo. */
+    private void aplicarDocumento(Organizacion organizacion, MultipartFile documento) {
+        if (documento == null || documento.isEmpty()) {
+            return;
+        }
+        String nombreNuevo = documentoStorage.guardar(documento);
+        documentoStorage.eliminar(organizacion.getDocumento());
+        organizacion.setDocumento(nombreNuevo);
     }
 
     private void eliminarLogoActual(Organizacion organizacion) {
