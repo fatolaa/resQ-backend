@@ -24,4 +24,9 @@ public interface OrganizacionRepository extends JpaRepository<Organizacion, Long
 
     // HU-34: organizaciones que ya existian al cierre de un periodo.
     List<Organizacion> findByFechaRegistroLessThanEqualOrFechaRegistroIsNull(LocalDateTime hasta);
+
+    // HU-25: listado del panel de administracion, las mas recientes primero.
+    List<Organizacion> findAllByOrderByFechaRegistroDesc();
+
+    List<Organizacion> findByEstadoVerificacionOrderByFechaRegistroDesc(String estadoVerificacion);
 }

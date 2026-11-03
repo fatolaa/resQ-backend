@@ -1,5 +1,6 @@
 package com.resq.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
@@ -55,6 +56,17 @@ public class Organizacion {
 
     @Column(name = "fecha_registro")
     private LocalDateTime fechaRegistro;
+
+    // ---- HU-25: ultima revision de un administrador ----
+    // Quien aprobo o rechazo la organizacion y cuando. Los llena solo el backend y no se
+    // exponen en el JSON publico (directorio, ficha): el panel admin los recibe en su DTO.
+    @JsonIgnore
+    @Column(name = "id_revisor")
+    private Long idRevisor;
+
+    @JsonIgnore
+    @Column(name = "fecha_revision")
+    private LocalDateTime fechaRevision;
 
     public Organizacion() {
     }
@@ -180,5 +192,25 @@ public class Organizacion {
 
     public void setFechaRegistro(LocalDateTime fechaRegistro) {
         this.fechaRegistro = fechaRegistro;
+    }
+
+    // HU-25
+    public Long getIdRevisor() {
+        return idRevisor;
+    }
+
+    // HU-25
+    public void setIdRevisor(Long idRevisor) {
+        this.idRevisor = idRevisor;
+    }
+
+    // HU-25
+    public LocalDateTime getFechaRevision() {
+        return fechaRevision;
+    }
+
+    // HU-25
+    public void setFechaRevision(LocalDateTime fechaRevision) {
+        this.fechaRevision = fechaRevision;
     }
 }
