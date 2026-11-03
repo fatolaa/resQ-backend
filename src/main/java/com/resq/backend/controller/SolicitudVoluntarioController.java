@@ -41,7 +41,7 @@ public class SolicitudVoluntarioController {
         Long idUsuario = obtenerIdUsuario(authentication);
         logger.info("Creando solicitud de voluntario. Usuario ID: {}", idUsuario);
         Usuario usuario = usuarioRepository.findById(idUsuario)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
         try {
             SolicitudVoluntarioDetalleDTO creada = solicitudService.crearSolicitud(
                     usuario, request.tipoAyuda(), request.mensaje());
