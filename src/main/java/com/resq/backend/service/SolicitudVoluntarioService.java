@@ -13,7 +13,9 @@ import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -48,7 +50,7 @@ public class SolicitudVoluntarioService {
     public SolicitudVoluntarioDetalleDTO obtenerDetalle(Long idSolicitud) {
         logger.info("Obteniendo detalle de solicitud de voluntario ID: {}", idSolicitud);
         SolicitudVoluntario solicitud = solicitudRepository.findById(idSolicitud)
-                .orElseThrow(() -> new RuntimeException("Solicitud de voluntario no encontrada"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Solicitud de voluntario no encontrada"));
         return toDetalle(solicitud);
     }
 
@@ -56,14 +58,14 @@ public class SolicitudVoluntarioService {
     public SolicitudVoluntarioDetalleDTO aprobarSolicitud(Long idSolicitud, Long idAdministrador) {
         logger.info("Aprobando solicitud de voluntario ID: {} por admin ID: {}", idSolicitud, idAdministrador);
         SolicitudVoluntario solicitud = solicitudRepository.findById(idSolicitud)
-                .orElseThrow(() -> new RuntimeException("Solicitud de voluntario no encontrada"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Solicitud de voluntario no encontrada"));
 
         if (solicitud.getEstado() != EstadoSolicitudVoluntario.PENDIENTE) {
-            throw new RuntimeException("La solicitud no est?? en estado PENDIENTE");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "La solicitud ya fue revisada: no está en estado PENDIENTE");
         }
 
         Usuario admin = usuarioRepository.findById(idAdministrador)
-                .orElseThrow(() -> new RuntimeException("Administrador no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Administrador no encontrado"));
 
         Usuario solicitante = solicitud.getUsuario();
         solicitante.setRol("VOLUNTARIO");
@@ -85,14 +87,14 @@ public class SolicitudVoluntarioService {
     public SolicitudVoluntarioDetalleDTO rechazarSolicitud(Long idSolicitud, Long idAdministrador, RechazarSolicitudRequestDTO request) {
         logger.info("Rechazando solicitud de voluntario ID: {} por admin ID: {}", idSolicitud, idAdministrador);
         SolicitudVoluntario solicitud = solicitudRepository.findById(idSolicitud)
-                .orElseThrow(() -> new RuntimeException("Solicitud de voluntario no encontrada"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Solicitud de voluntario no encontrada"));
 
         if (solicitud.getEstado() != EstadoSolicitudVoluntario.PENDIENTE) {
-            throw new RuntimeException("La solicitud no est?? en estado PENDIENTE");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "La solicitud ya fue revisada: no está en estado PENDIENTE");
         }
 
         Usuario admin = usuarioRepository.findById(idAdministrador)
-                .orElseThrow(() -> new RuntimeException("Administrador no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Administrador no encontrado"));
 
         solicitud.setEstado(EstadoSolicitudVoluntario.RECHAZADA);
         solicitud.setFechaResolucion(LocalDateTime.now());

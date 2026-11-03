@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.beans.factory.annotation.Value;
 
 import java.util.Map;
@@ -28,6 +29,20 @@ public class GlobalExceptionHandler {
 
     public GlobalExceptionHandler(@Value("${resq.fotos.max-bytes:5242880}") long maxBytesFoto) {
         this.maxBytesFoto = maxBytesFoto;
+    }
+
+    /**
+     * HU-35: un ResponseStatusException sin manejar hace que Spring reenvie la peticion a
+     * /error, y /error no es publico: la respuesta terminaba siendo 401 y el frontend cerraba
+     * la sesion (por ejemplo, al aprobar una solicitud que ya estaba revisada). Aca se
+     * responde directamente con su estado y el mismo ApiError que el resto de errores.
+     */
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiError> handleResponseStatus(ResponseStatusException ex) {
+        int estado = ex.getStatusCode().value();
+        String mensaje = ex.getReason() != null ? ex.getReason() : HttpStatus.valueOf(estado).getReasonPhrase();
+        logger.warn("Peticion rechazada con {}: {}", estado, mensaje);
+        return ResponseEntity.status(estado).body(new ApiError(estado, mensaje, Map.of()));
     }
 
     @ExceptionHandler(FotoInvalidaException.class)

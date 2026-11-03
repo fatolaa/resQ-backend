@@ -7,6 +7,7 @@ import com.resq.backend.dto.SolicitudVoluntarioDetalleDTO;
 import com.resq.backend.dto.SolicitudVoluntarioResumenDTO;
 import com.resq.backend.entity.Usuario;
 import com.resq.backend.repository.UsuarioRepository;
+import com.resq.backend.security.UsuarioAutenticado;
 import com.resq.backend.service.SolicitudVoluntarioService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -17,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
@@ -39,7 +41,7 @@ public class SolicitudVoluntarioController {
         Long idUsuario = obtenerIdUsuario(authentication);
         logger.info("Creando solicitud de voluntario. Usuario ID: {}", idUsuario);
         Usuario usuario = usuarioRepository.findById(idUsuario)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
         try {
             SolicitudVoluntarioDetalleDTO creada = solicitudService.crearSolicitud(
                     usuario, request.tipoAyuda(), request.mensaje());
@@ -87,11 +89,15 @@ public class SolicitudVoluntarioController {
         return ResponseEntity.ok(detalle);
     }
 
+    /**
+     * El JwtAuthenticationFilter deja como principal el id del usuario (un String), no un
+     * UserDetails. Antes se esperaba un UserDetails: la excepcion terminaba en /error, que
+     * responde 401, y el frontend cerraba la sesion al pedir ser voluntario o al aprobar o
+     * rechazar una solicitud. Ahora se lee igual que en el resto de los controladores.
+     */
     private Long obtenerIdUsuario(Authentication authentication) {
-        if (authentication != null && authentication.getPrincipal() instanceof org.springframework.security.core.userdetails.UserDetails) {
-            org.springframework.security.core.userdetails.UserDetails userDetails = (org.springframework.security.core.userdetails.UserDetails) authentication.getPrincipal();
-            return Long.parseLong(userDetails.getUsername());
-        }
-        throw new RuntimeException("No se pudo obtener el ID del usuario autenticado");
+        return UsuarioAutenticado.idActual()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED,
+                        "No se pudo obtener el ID del usuario autenticado"));
     }
 }
