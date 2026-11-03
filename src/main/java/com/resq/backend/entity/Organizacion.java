@@ -64,6 +64,12 @@ public class Organizacion {
     @Column(name = "documento", length = 100)
     private String documento;
 
+    // ---- HU-32: nota de la ultima revision ----
+    // Se expone en el JSON para que el representante vea por que fue rechazada su
+    // organizacion y pueda corregirlo antes de reenviar la solicitud.
+    @Column(name = "nota_revision", length = 500)
+    private String notaRevision;
+
     // ---- HU-25: ultima revision de un administrador ----
     // Quien aprobo o rechazo la organizacion y cuando. Los llena solo el backend y no se
     // exponen en el JSON publico (directorio, ficha): el panel admin los recibe en su DTO.
@@ -235,5 +241,15 @@ public class Organizacion {
     @JsonProperty("tieneDocumento")
     public boolean tieneDocumento() {
         return documento != null && !documento.isBlank();
+    }
+
+    // HU-32
+    public String getNotaRevision() {
+        return notaRevision;
+    }
+
+    // HU-32
+    public void setNotaRevision(String notaRevision) {
+        this.notaRevision = notaRevision;
     }
 }

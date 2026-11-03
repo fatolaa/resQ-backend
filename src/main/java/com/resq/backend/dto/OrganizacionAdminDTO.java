@@ -30,7 +30,8 @@ public record OrganizacionAdminDTO(
         String emailRepresentante,
         Long idRevisor,
         String nombreRevisor,
-        LocalDateTime fechaRevision) {
+        LocalDateTime fechaRevision,
+        String notaRevision) {
 
     /** {@code representante} y {@code revisor} pueden ser null (cuenta borrada o sin revisar). */
     public static OrganizacionAdminDTO de(Organizacion o, Usuario representante, Usuario revisor) {
@@ -53,6 +54,7 @@ public record OrganizacionAdminDTO(
                 representante == null ? null : representante.getEmail(),
                 o.getIdRevisor(),
                 revisor == null ? null : revisor.getNombre(),
-                o.getFechaRevision());
+                o.getFechaRevision(),
+                o.getNotaRevision());
     }
 }

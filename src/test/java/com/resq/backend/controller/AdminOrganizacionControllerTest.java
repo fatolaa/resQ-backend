@@ -16,6 +16,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
@@ -78,7 +79,7 @@ class AdminOrganizacionControllerTest {
     private static OrganizacionAdminDTO dto(long id, String estado) {
         return new OrganizacionAdminDTO(id, "Refugio Patitas", "REFUGIO", "Av. Heroínas 123", "70000000",
                 "patitas@resq.com", null, null, null, null, false, estado, LocalDateTime.of(2026, 10, 1, 10, 0),
-                20L, "Ana Refugio", "ana@resq.com", null, null, null);
+                20L, "Ana Refugio", "ana@resq.com", null, null, null, null);
     }
 
     // ---------------------------------------------------------------- acceso
@@ -99,7 +100,7 @@ class AdminOrganizacionControllerTest {
                 .andExpect(status().isForbidden());
 
         verify(adminOrganizacionService, never()).listar(any());
-        verify(adminOrganizacionService, never()).aprobar(anyLong(), anyLong());
+        verify(adminOrganizacionService, never()).aprobar(anyLong(), anyLong(), any());
     }
 
     // ---------------------------------------------------------------- consultar
@@ -145,24 +146,25 @@ class AdminOrganizacionControllerTest {
     @Test
     @DisplayName("aprobar y rechazar registran el id del administrador del token")
     void aprobarYRechazar() throws Exception {
-        when(adminOrganizacionService.aprobar(7L, 1L)).thenReturn(dto(7, "VERIFICADA"));
-        when(adminOrganizacionService.rechazar(8L, 1L)).thenReturn(dto(8, "RECHAZADA"));
+        when(adminOrganizacionService.aprobar(7L, 1L, null)).thenReturn(dto(7, "VERIFICADA"));
+        when(adminOrganizacionService.rechazar(8L, 1L, "Falta documento")).thenReturn(dto(8, "RECHAZADA"));
 
         mockMvc.perform(put(URL + "/7/aprobar").header("Authorization", "Bearer " + TOKEN_ADMIN))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estadoVerificacion").value("VERIFICADA"));
-        mockMvc.perform(put(URL + "/8/rechazar").header("Authorization", "Bearer " + TOKEN_ADMIN))
+        mockMvc.perform(put(URL + "/8/rechazar").header("Authorization", "Bearer " + TOKEN_ADMIN)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"nota\":\"Falta documento\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.estadoVerificacion").value("RECHAZADA"));
 
-        verify(adminOrganizacionService).aprobar(7L, 1L);
-        verify(adminOrganizacionService).rechazar(8L, 1L);
+        verify(adminOrganizacionService).aprobar(7L, 1L, null);
+        verify(adminOrganizacionService).rechazar(8L, 1L, "Falta documento");
     }
 
     @Test
     @DisplayName("decidir sobre una organizacion ya revisada responde 409 (no 401)")
     void yaRevisada() throws Exception {
-        when(adminOrganizacionService.aprobar(7L, 1L)).thenThrow(new OrganizacionException(
+        when(adminOrganizacionService.aprobar(7L, 1L, null)).thenThrow(new OrganizacionException(
                 HttpStatus.CONFLICT, "La organización ya fue revisada: no está pendiente de verificación", Map.of()));
 
         mockMvc.perform(put(URL + "/7/aprobar").header("Authorization", "Bearer " + TOKEN_ADMIN))

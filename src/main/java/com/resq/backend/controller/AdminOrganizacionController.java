@@ -1,11 +1,14 @@
 package com.resq.backend.controller;
 
 import com.resq.backend.dto.ApiError;
+import com.resq.backend.dto.DecisionOrganizacionRequestDTO;
 import com.resq.backend.dto.OrganizacionAdminDTO;
+import com.resq.backend.dto.RevisionOrganizacionDTO;
 import com.resq.backend.exception.OrganizacionException;
 import com.resq.backend.security.UsuarioAutenticado;
 import com.resq.backend.service.AdminOrganizacionService;
 import com.resq.backend.service.DocumentoStorageService.DocumentoAlmacenado;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,8 +37,9 @@ import java.util.Map;
  * - GET /api/admin/organizaciones?estado=PENDIENTE_VERIFICACION   listado (estado opcional)
  * - GET /api/admin/organizaciones/{id}                            detalle en cualquier estado
  * - GET /api/admin/organizaciones/{id}/documento                  documento de verificacion (HU-32)
- * - PUT /api/admin/organizaciones/{id}/aprobar                    pasa a VERIFICADA
- * - PUT /api/admin/organizaciones/{id}/rechazar                   pasa a RECHAZADA
+ * - GET /api/admin/organizaciones/{id}/revisiones                 historial de verificacion (HU-32)
+ * - PUT /api/admin/organizaciones/{id}/aprobar   {nota?}          pasa a VERIFICADA
+ * - PUT /api/admin/organizaciones/{id}/rechazar  {nota}           pasa a RECHAZADA (motivo obligatorio)
  */
 @RestController
 @RequestMapping("/api/admin/organizaciones")
@@ -73,18 +78,31 @@ public class AdminOrganizacionController {
                 .body(documento.recurso());
     }
 
+    @GetMapping("/{idOrganizacion}/revisiones")
+    public ResponseEntity<List<RevisionOrganizacionDTO>> historial(@PathVariable Long idOrganizacion) {
+        return ResponseEntity.ok(adminOrganizacionService.historial(idOrganizacion));
+    }
+
     @PutMapping("/{idOrganizacion}/aprobar")
-    public ResponseEntity<OrganizacionAdminDTO> aprobar(@PathVariable Long idOrganizacion) {
+    public ResponseEntity<OrganizacionAdminDTO> aprobar(
+            @PathVariable Long idOrganizacion,
+            @Valid @RequestBody(required = false) DecisionOrganizacionRequestDTO decision) {
         Long idAdmin = idAdministrador();
         logger.info("Administrador ID {} aprueba la organizacion ID {}", idAdmin, idOrganizacion);
-        return ResponseEntity.ok(adminOrganizacionService.aprobar(idOrganizacion, idAdmin));
+        return ResponseEntity.ok(adminOrganizacionService.aprobar(idOrganizacion, idAdmin, notaDe(decision)));
     }
 
     @PutMapping("/{idOrganizacion}/rechazar")
-    public ResponseEntity<OrganizacionAdminDTO> rechazar(@PathVariable Long idOrganizacion) {
+    public ResponseEntity<OrganizacionAdminDTO> rechazar(
+            @PathVariable Long idOrganizacion,
+            @Valid @RequestBody(required = false) DecisionOrganizacionRequestDTO decision) {
         Long idAdmin = idAdministrador();
         logger.info("Administrador ID {} rechaza la organizacion ID {}", idAdmin, idOrganizacion);
-        return ResponseEntity.ok(adminOrganizacionService.rechazar(idOrganizacion, idAdmin));
+        return ResponseEntity.ok(adminOrganizacionService.rechazar(idOrganizacion, idAdmin, notaDe(decision)));
+    }
+
+    private static String notaDe(DecisionOrganizacionRequestDTO decision) {
+        return decision == null ? null : decision.nota();
     }
 
     /** SecurityConfig ya exige sesion de ADMIN, asi que el id siempre esta. */

@@ -13,6 +13,9 @@ public class Notificacion {
     public static final String SOLICITUD_RECHAZADA = "SOLICITUD_RECHAZADA";
     public static final String SOLICITUD_VOLUNTARIO = "SOLICITUD_VOLUNTARIO";
     public static final String SISTEMA = "SISTEMA";
+    // HU-32: resultado de la verificacion de una organizacion, para su representante.
+    public static final String ORGANIZACION_VERIFICADA = "ORGANIZACION_VERIFICADA";
+    public static final String ORGANIZACION_RECHAZADA = "ORGANIZACION_RECHAZADA";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

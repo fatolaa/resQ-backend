@@ -6,6 +6,7 @@ import com.resq.backend.entity.Organizacion;
 import com.resq.backend.entity.Usuario;
 import com.resq.backend.exception.OrganizacionException;
 import com.resq.backend.repository.OrganizacionRepository;
+import com.resq.backend.repository.RevisionOrganizacionRepository;
 import com.resq.backend.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -40,7 +41,8 @@ class AdminOrganizacionServiceTest {
         organizacionRepository = mock(OrganizacionRepository.class);
         usuarioRepository = mock(UsuarioRepository.class);
         servicio = new AdminOrganizacionService(organizacionRepository, usuarioRepository,
-                mock(DocumentoStorageService.class));
+                mock(DocumentoStorageService.class), mock(RevisionOrganizacionRepository.class),
+                mock(NotificacionService.class), mock(EmailService.class));
 
         when(usuarioRepository.findById(ID_ADMIN)).thenReturn(Optional.of(usuario(ID_ADMIN, "Admin Demo")));
         when(usuarioRepository.findById(ID_REPRESENTANTE))
@@ -139,7 +141,7 @@ class AdminOrganizacionServiceTest {
         when(organizacionRepository.findById(7L)).thenReturn(Optional.of(pendiente));
         LocalDateTime antes = LocalDateTime.now();
 
-        OrganizacionAdminDTO resultado = servicio.aprobar(7L, ID_ADMIN);
+        OrganizacionAdminDTO resultado = servicio.aprobar(7L, ID_ADMIN, null);
 
         assertThat(resultado.estadoVerificacion()).isEqualTo(EstadoVerificacion.VERIFICADA);
         assertThat(pendiente.puedeGestionarCasos()).isTrue();
@@ -155,7 +157,7 @@ class AdminOrganizacionServiceTest {
         Organizacion pendiente = organizacion(8, EstadoVerificacion.PENDIENTE);
         when(organizacionRepository.findById(8L)).thenReturn(Optional.of(pendiente));
 
-        OrganizacionAdminDTO resultado = servicio.rechazar(8L, ID_ADMIN);
+        OrganizacionAdminDTO resultado = servicio.rechazar(8L, ID_ADMIN, "Falta la personería jurídica");
 
         assertThat(resultado.estadoVerificacion()).isEqualTo(EstadoVerificacion.RECHAZADA);
         assertThat(pendiente.puedeGestionarCasos()).isFalse();
@@ -168,7 +170,7 @@ class AdminOrganizacionServiceTest {
         when(organizacionRepository.findById(9L))
                 .thenReturn(Optional.of(organizacion(9, EstadoVerificacion.VERIFICADA)));
 
-        assertThatThrownBy(() -> servicio.rechazar(9L, ID_ADMIN))
+        assertThatThrownBy(() -> servicio.rechazar(9L, ID_ADMIN, "Motivo"))
                 .isInstanceOf(OrganizacionException.class)
                 .satisfies(e -> assertThat(((OrganizacionException) e).getStatus()).isEqualTo(HttpStatus.CONFLICT));
         verify(organizacionRepository, never()).save(any());
