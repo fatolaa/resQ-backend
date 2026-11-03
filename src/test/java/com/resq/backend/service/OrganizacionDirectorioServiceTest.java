@@ -4,6 +4,7 @@ import com.resq.backend.entity.EstadoVerificacion;
 import com.resq.backend.entity.Organizacion;
 import com.resq.backend.exception.OrganizacionException;
 import com.resq.backend.repository.OrganizacionRepository;
+import com.resq.backend.repository.RevisionOrganizacionRepository;
 import com.resq.backend.repository.UsuarioRepository;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,7 +38,8 @@ class OrganizacionDirectorioServiceTest {
                 mock(FotoStorageService.class),
                 mock(DocumentoStorageService.class),
                 mock(EmailService.class),
-                mock(Validator.class));
+                mock(Validator.class),
+                mock(RevisionOrganizacionRepository.class));
     }
 
     private static Organizacion organizacion(String nombre, String tipo, String zonas, String estado) {

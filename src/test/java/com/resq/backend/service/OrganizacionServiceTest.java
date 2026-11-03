@@ -6,6 +6,7 @@ import com.resq.backend.entity.EstadoVerificacion;
 import com.resq.backend.entity.Organizacion;
 import com.resq.backend.exception.OrganizacionException;
 import com.resq.backend.repository.OrganizacionRepository;
+import com.resq.backend.repository.RevisionOrganizacionRepository;
 import com.resq.backend.repository.UsuarioRepository;
 import jakarta.validation.Validation;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +43,7 @@ class OrganizacionServiceTest {
     private OrganizacionRepository organizacionRepository;
     private UsuarioRepository usuarioRepository;
     private EmailService emailService;
+    private RevisionOrganizacionRepository revisionRepository;
     private OrganizacionService servicio;
 
     @BeforeEach
@@ -49,6 +51,7 @@ class OrganizacionServiceTest {
         organizacionRepository = mock(OrganizacionRepository.class);
         usuarioRepository = mock(UsuarioRepository.class);
         emailService = mock(EmailService.class);
+        revisionRepository = mock(RevisionOrganizacionRepository.class);
 
         when(usuarioRepository.existsById(REPRESENTANTE)).thenReturn(true);
         when(emailService.enviar(anyString(), anyString(), anyString())).thenReturn(true);
@@ -65,7 +68,8 @@ class OrganizacionServiceTest {
                 new FotoStorageService(carpetaLogos.toString(), 1024),
                 new DocumentoStorageService(carpetaLogos.resolve("documentos").toString(), 1024),
                 emailService,
-                Validation.buildDefaultValidatorFactory().getValidator());
+                Validation.buildDefaultValidatorFactory().getValidator(),
+                revisionRepository);
     }
 
     private static OrganizacionRequestDTO datosValidos() {

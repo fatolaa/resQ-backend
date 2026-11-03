@@ -4,10 +4,12 @@ import com.resq.backend.dto.OrganizacionRegistradaDTO;
 import com.resq.backend.dto.OrganizacionRequestDTO;
 import com.resq.backend.entity.EstadoVerificacion;
 import com.resq.backend.entity.Organizacion;
+import com.resq.backend.entity.RevisionOrganizacion;
 import com.resq.backend.entity.TipoOrganizacion;
 import com.resq.backend.exception.FotoInvalidaException;
 import com.resq.backend.exception.OrganizacionException;
 import com.resq.backend.repository.OrganizacionRepository;
+import com.resq.backend.repository.RevisionOrganizacionRepository;
 import com.resq.backend.repository.UsuarioRepository;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
@@ -17,6 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -40,19 +43,22 @@ public class OrganizacionService {
     private final DocumentoStorageService documentoStorage;
     private final EmailService emailService;
     private final Validator validator;
+    private final RevisionOrganizacionRepository revisionRepository;
 
     public OrganizacionService(OrganizacionRepository organizacionRepository,
                                UsuarioRepository usuarioRepository,
                                FotoStorageService fotoStorage,
                                DocumentoStorageService documentoStorage,
                                EmailService emailService,
-                               Validator validator) {
+                               Validator validator,
+                               RevisionOrganizacionRepository revisionRepository) {
         this.organizacionRepository = organizacionRepository;
         this.usuarioRepository = usuarioRepository;
         this.fotoStorage = fotoStorage;
         this.documentoStorage = documentoStorage;
         this.emailService = emailService;
         this.validator = validator;
+        this.revisionRepository = revisionRepository;
     }
 
     /**
@@ -226,6 +232,39 @@ public class OrganizacionService {
 
         Organizacion guardada = organizacionRepository.save(organizacion);
         logger.info("Organizacion ID {} actualizada", guardada.getIdOrganizacion());
+        return guardada;
+    }
+
+    /**
+     * HU-32: una organización rechazada vuelve a enviar su solicitud después de corregir lo que
+     * indicó el administrador (los datos y el documento se corrigen antes con
+     * {@link #actualizar}). Vuelve a PENDIENTE_VERIFICACION y el reenvío queda en el historial.
+     *
+     * @throws OrganizacionException 404 si no existe, 403 si quien la reenvía no es su
+     *                               representante, 409 si no está rechazada.
+     */
+    public Organizacion reenviar(Long idOrganizacion, Long idUsuario) {
+        Organizacion organizacion = organizacionRepository.findById(idOrganizacion)
+                .orElseThrow(() -> new OrganizacionException(HttpStatus.NOT_FOUND, "La organización no existe",
+                        Map.of("idOrganizacion", "La organización no existe")));
+        if (!organizacion.getIdRepresentante().equals(idUsuario)) {
+            logger.warn("Reenvio rechazado: usuario ID {} no representa a la organizacion ID {}",
+                    idUsuario, idOrganizacion);
+            throw new OrganizacionException(HttpStatus.FORBIDDEN, "Solo puedes reenviar tu propia organización",
+                    Map.of("idRepresentante", "Solo el representante puede reenviar la solicitud"));
+        }
+        if (!EstadoVerificacion.RECHAZADA.equals(organizacion.getEstadoVerificacion())) {
+            throw new OrganizacionException(HttpStatus.CONFLICT,
+                    "Solo se puede reenviar una solicitud rechazada",
+                    Map.of("estadoVerificacion", organizacion.getEstadoVerificacion()));
+        }
+
+        organizacion.setEstadoVerificacion(EstadoVerificacion.PENDIENTE);
+        Organizacion guardada = organizacionRepository.save(organizacion);
+        revisionRepository.save(new RevisionOrganizacion(idOrganizacion, RevisionOrganizacion.REENVIADA,
+                null, idUsuario, LocalDateTime.now()));
+        logger.info("Organizacion ID {} reenviada a verificacion por su representante ID {}",
+                idOrganizacion, idUsuario);
         return guardada;
     }
 

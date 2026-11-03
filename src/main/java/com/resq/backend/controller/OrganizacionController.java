@@ -26,6 +26,7 @@ import java.util.Optional;
  * - GET  /api/organizaciones                        directorio de verificadas (filtros: tipo, zona)
  * - GET  /api/organizaciones/{id}                   ficha de una organización verificada
  * - GET  /api/organizaciones/representante/{id}     organización de un usuario (con su estado)
+ * - POST /api/organizaciones/{id}/reenviar          vuelve a pedir verificacion tras un rechazo (HU-32)
  * - PUT  /api/organizaciones/{id}                   edita la ficha (multipart: campos + logo/documento opcionales + quitarLogo)
  * El logo se guarda con el servicio de fotos de HU-10 y se ve en GET /api/reportes/fotos/{nombre}.
  */
@@ -110,6 +111,21 @@ public class OrganizacionController {
                 logo, quitarLogo, documento);
         logger.info("Organizacion ID {} actualizada por representante ID {}", idOrganizacion, representante);
         return ResponseEntity.ok(actualizada);
+    }
+
+    /**
+     * HU-32: el representante reenvía su organización rechazada para que la vuelvan a revisar.
+     * La identidad sale del token: nadie puede reenviar una organización ajena.
+     */
+    @PostMapping("/{idOrganizacion}/reenviar")
+    public ResponseEntity<?> reenviar(@PathVariable Long idOrganizacion) {
+        Optional<Long> idToken = UsuarioAutenticado.idActual();
+        if (idToken.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiError(HttpStatus.UNAUTHORIZED.value(), "Debes iniciar sesión", Map.of()));
+        }
+        Organizacion reenviada = organizacionService.reenviar(idOrganizacion, idToken.get());
+        return ResponseEntity.ok(reenviada);
     }
 
     /**
