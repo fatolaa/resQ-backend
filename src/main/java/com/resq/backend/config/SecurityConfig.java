@@ -133,6 +133,12 @@ public class SecurityConfig {
                         .requestMatchers("/api/metricas", "/api/metricas/**").hasRole(ROL_ADMIN)
 
                         // HU-39: El chat requiere que el usuario esté logueado para ver sus conversaciones.
+                                                // HU-40: solo un administrador puede consultar o decidir sobre denuncias del chat.
+                        .requestMatchers(HttpMethod.GET, "/api/chat/denuncias", "/api/chat/denuncias/**").hasRole(ROL_ADMIN)
+                        .requestMatchers(HttpMethod.PATCH, "/api/chat/denuncias/*/resolver").hasRole(ROL_ADMIN)
+
+                        // HU-39 / HU-40: el resto del chat (bloqueos, crear denuncia, conversaciones, mensajes)
+                        // requiere que el usuario este autenticado.
                         .requestMatchers("/api/chat/**").authenticated()
 
                         .anyRequest().authenticated())
