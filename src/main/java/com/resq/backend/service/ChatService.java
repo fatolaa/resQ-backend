@@ -1,28 +1,49 @@
 package com.resq.backend.service;
 
 import com.resq.backend.dto.ConversacionDTO;
+import com.resq.backend.dto.EnviarMensajeRequestDTO;
+import com.resq.backend.entity.BloqueoUsuario;
 import com.resq.backend.entity.Mensaje;
 import com.resq.backend.entity.Usuario;
+import com.resq.backend.exception.ChatException;
+import com.resq.backend.repository.BloqueoUsuarioRepository;
 import com.resq.backend.repository.MensajeRepository;
 import com.resq.backend.repository.UsuarioRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class ChatService {
 
+    private static final Logger logger = LoggerFactory.getLogger(ChatService.class);
+
     private final MensajeRepository mensajeRepository;
     private final UsuarioRepository usuarioRepository;
+    private final BloqueoUsuarioRepository bloqueoRepository;
 
-    public ChatService(MensajeRepository mensajeRepository, UsuarioRepository usuarioRepository) {
+    public ChatService(MensajeRepository mensajeRepository,
+                       UsuarioRepository usuarioRepository,
+                       BloqueoUsuarioRepository bloqueoRepository) {
         this.mensajeRepository = mensajeRepository;
         this.usuarioRepository = usuarioRepository;
+        this.bloqueoRepository = bloqueoRepository;
     }
 
     // Obtiene la lista de conversaciones del usuario actual
     public List<ConversacionDTO> obtenerConversaciones(Long idUsuario, String busqueda) {
+        // HU-40: IDs bloqueados por este usuario -> se ocultan de la lista de conversaciones
+        Set<Long> bloqueadosPorMi = bloqueoRepository
+                .findByIdBloqueadorOrderByFechaBloqueoDesc(idUsuario)
+                .stream()
+                .map(BloqueoUsuario::getIdBloqueado)
+                .collect(Collectors.toSet());
+
         // 1. Traer todos los mensajes donde el usuario participa
         List<Mensaje> todos = mensajeRepository.findAll().stream()
                 .filter(m -> m.getIdEmisor().equals(idUsuario) || m.getIdReceptor().equals(idUsuario))
@@ -36,6 +57,12 @@ public class ChatService {
 
         for (Map.Entry<Long, List<Mensaje>> entry : agrupados.entrySet()) {
             Long otroId = entry.getKey();
+
+            // HU-40: Si tengo bloqueado al otro usuario, no mostrar la conversación
+            if (bloqueadosPorMi.contains(otroId)) {
+                continue;
+            }
+
             List<Mensaje> mensajes = entry.getValue();
             
             // Ordenar para sacar el último
@@ -72,6 +99,42 @@ public class ChatService {
         resultado.sort((a, b) -> b.fechaUltimoMensaje().compareTo(a.fechaUltimoMensaje()));
 
         return resultado;
+    }
+
+    // HU-40: Enviar mensaje validando que el receptor no haya bloqueado al emisor
+    public Mensaje enviarMensaje(Long idEmisor, EnviarMensajeRequestDTO dto) {
+        Long idReceptor = dto.idReceptor();
+
+        if (Objects.equals(idEmisor, idReceptor)) {
+            throw new ChatException(HttpStatus.BAD_REQUEST, "No puedes enviarte un mensaje a ti mismo",
+                    Map.of("idReceptor", "No puedes enviar mensajes a tu propia cuenta"));
+        }
+
+        if (!usuarioRepository.existsById(idReceptor)) {
+            throw new ChatException(HttpStatus.NOT_FOUND, "El destinatario no existe",
+                    Map.of("idReceptor", "Usuario destinatario no encontrado"));
+        }
+
+        // Criterio de aceptación HU-40:
+        // "Cuando una persona bloqueada intenta enviar un mensaje a quien la bloqueó,
+        // recibe un aviso de que fue bloqueada y el mensaje no se envía"
+        if (bloqueoRepository.existsByIdBloqueadorAndIdBloqueado(idReceptor, idEmisor)) {
+            logger.warn("Usuario ID {} intento enviar mensaje al usuario ID {}, pero esta bloqueado", idEmisor, idReceptor);
+            throw new ChatException(HttpStatus.FORBIDDEN,
+                    "No puedes enviar mensajes a este usuario porque has sido bloqueado",
+                    Map.of("idReceptor", "Has sido bloqueado por este usuario"));
+        }
+
+        Mensaje mensaje = new Mensaje();
+        mensaje.setIdEmisor(idEmisor);
+        mensaje.setIdReceptor(idReceptor);
+        mensaje.setContenido(dto.contenido().trim());
+        mensaje.setFechaEnvio(LocalDateTime.now());
+        mensaje.setLeido(false);
+
+        Mensaje guardado = mensajeRepository.save(mensaje);
+        logger.info("Mensaje ID {} enviado de usuario ID {} a usuario ID {}", guardado.getIdMensaje(), idEmisor, idReceptor);
+        return guardado;
     }
 
     // Archivar / Desarchivar una conversación
