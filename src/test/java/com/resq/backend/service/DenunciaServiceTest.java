@@ -11,6 +11,7 @@ import com.resq.backend.repository.MensajeRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
@@ -164,5 +165,41 @@ class DenunciaServiceTest {
                 .isInstanceOfSatisfying(ChatException.class,
                         ex -> assertThat(ex.getStatus()).isEqualTo(HttpStatus.CONFLICT));
         verify(denunciaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("no puede denunciar su propio mensaje (BAD_REQUEST)")
+    void noPuedeDenunciarMensajePropio() {
+        Mensaje m = new Mensaje();
+        m.setIdMensaje(100L);
+        m.setIdEmisor(1L);
+        m.setIdReceptor(2L);
+
+        when(mensajeRepository.findById(100L)).thenReturn(Optional.of(m));
+
+        DenunciaRequestDTO dto = new DenunciaRequestDTO(100L, "Motivo");
+        assertThatThrownBy(() -> servicio.denunciar(1L, dto))
+                .isInstanceOfSatisfying(ChatException.class,
+                        ex -> assertThat(ex.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST));
+        verify(denunciaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("DataIntegrityViolationException al guardar denuncia devuelve CONFLICT")
+    void denunciaRaceConditionDevuelveConflict() {
+        Mensaje m = new Mensaje();
+        m.setIdMensaje(100L);
+        m.setIdEmisor(2L);
+        m.setIdReceptor(1L);
+
+        when(mensajeRepository.findById(100L)).thenReturn(Optional.of(m));
+        when(denunciaRepository.existsByIdMensajeAndIdDenunciante(100L, 1L)).thenReturn(false);
+        when(denunciaRepository.save(any(DenunciaMensaje.class)))
+                .thenThrow(new DataIntegrityViolationException("uk_denuncia_mensaje_denunciante"));
+
+        DenunciaRequestDTO dto = new DenunciaRequestDTO(100L, "Motivo");
+        assertThatThrownBy(() -> servicio.denunciar(1L, dto))
+                .isInstanceOfSatisfying(ChatException.class,
+                        ex -> assertThat(ex.getStatus()).isEqualTo(HttpStatus.CONFLICT));
     }
 }

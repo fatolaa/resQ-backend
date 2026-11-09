@@ -8,6 +8,7 @@ import com.resq.backend.repository.BloqueoUsuarioRepository;
 import com.resq.backend.repository.UsuarioRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -45,9 +46,14 @@ public class BloqueoService {
         }
 
         BloqueoUsuario bloqueo = new BloqueoUsuario(idBloqueador, idBloqueado);
-        BloqueoUsuario guardado = bloqueoRepository.save(bloqueo);
-        logger.info("Usuario ID {} bloqueo al usuario ID {}", idBloqueador, idBloqueado);
-        return guardado;
+        try {
+            BloqueoUsuario guardado = bloqueoRepository.save(bloqueo);
+            logger.info("Usuario ID {} bloqueo al usuario ID {}", idBloqueador, idBloqueado);
+            return guardado;
+        } catch (DataIntegrityViolationException ex) {
+            throw new ChatException(HttpStatus.CONFLICT, "Ya has bloqueado a este usuario",
+                    Map.of("idBloqueado", "El usuario ya se encuentra bloqueado (restricción de unicidad)"));
+        }
     }
 
     public void desbloquear(Long idBloqueador, Long idBloqueado) {

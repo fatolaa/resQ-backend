@@ -7,7 +7,11 @@ import java.time.LocalDateTime;
  * HU-40: Denuncia de un mensaje inapropiado dentro del chat para revisión administrativa.
  */
 @Entity
-@Table(name = "denuncia_mensaje")
+@Table(name = "denuncia_mensaje",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_denuncia_mensaje_denunciante",
+                columnNames = {"id_mensaje", "id_denunciante"}
+        ))
 public class DenunciaMensaje {
 
     @Id

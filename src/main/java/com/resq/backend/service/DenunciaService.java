@@ -10,6 +10,7 @@ import com.resq.backend.repository.DenunciaMensajeRepository;
 import com.resq.backend.repository.MensajeRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -44,20 +45,28 @@ public class DenunciaService {
                     Map.of("idMensaje", "No eres participante de esta conversación"));
         }
 
+        if (Objects.equals(mensaje.getIdEmisor(), idDenunciante)) {
+            throw new ChatException(HttpStatus.BAD_REQUEST, "No puedes denunciar tu propio mensaje",
+                    Map.of("idMensaje", "El denunciante es el emisor del mensaje"));
+        }
+
         if (denunciaRepository.existsByIdMensajeAndIdDenunciante(dto.idMensaje(), idDenunciante)) {
             throw new ChatException(HttpStatus.CONFLICT, "Ya has denunciado este mensaje previamente",
                     Map.of("idMensaje", "Denuncia ya registrada por el usuario"));
         }
 
-        Long idDenunciado = Objects.equals(mensaje.getIdEmisor(), idDenunciante)
-                ? mensaje.getIdReceptor()
-                : mensaje.getIdEmisor();
+        Long idDenunciado = mensaje.getIdEmisor();
 
         DenunciaMensaje denuncia = new DenunciaMensaje(dto.idMensaje(), idDenunciante, idDenunciado, dto.motivo());
-        DenunciaMensaje guardada = denunciaRepository.save(denuncia);
-        logger.info("Usuario ID {} denuncio el mensaje ID {} del usuario ID {}",
-                idDenunciante, dto.idMensaje(), idDenunciado);
-        return guardada;
+        try {
+            DenunciaMensaje guardada = denunciaRepository.save(denuncia);
+            logger.info("Usuario ID {} denuncio el mensaje ID {} del usuario ID {}",
+                    idDenunciante, dto.idMensaje(), idDenunciado);
+            return guardada;
+        } catch (DataIntegrityViolationException ex) {
+            throw new ChatException(HttpStatus.CONFLICT, "Ya has denunciado este mensaje previamente",
+                    Map.of("idMensaje", "Denuncia ya registrada por restricción de unicidad"));
+        }
     }
 
     public List<DenunciaMensaje> listarDenuncias(EstadoDenuncia estado) {

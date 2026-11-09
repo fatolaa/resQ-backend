@@ -9,6 +9,7 @@ import com.resq.backend.repository.UsuarioRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 
 import java.time.LocalDateTime;
@@ -144,5 +145,22 @@ class BloqueoServiceTest {
 
         assertThat(servicio.estaBloqueado(2L, 1L)).isTrue();
         assertThat(servicio.estaBloqueado(3L, 1L)).isFalse();
+    }
+
+    @Test
+    @DisplayName("DataIntegrityViolationException al guardar bloqueo devuelve CONFLICT")
+    void bloqueoRaceConditionDevuelveConflict() {
+        Usuario destino = new Usuario();
+        destino.setIdUsuario(2L);
+        destino.setNombre("Carlos Lopez");
+
+        when(usuarioRepository.findById(2L)).thenReturn(Optional.of(destino));
+        when(bloqueoRepository.existsByIdBloqueadorAndIdBloqueado(1L, 2L)).thenReturn(false);
+        when(bloqueoRepository.save(any(BloqueoUsuario.class)))
+                .thenThrow(new DataIntegrityViolationException("uk_bloqueo_usuario"));
+
+        assertThatThrownBy(() -> servicio.bloquear(1L, 2L))
+                .isInstanceOfSatisfying(ChatException.class,
+                        ex -> assertThat(ex.getStatus()).isEqualTo(HttpStatus.CONFLICT));
     }
 }
