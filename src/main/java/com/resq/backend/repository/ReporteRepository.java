@@ -57,4 +57,7 @@ public interface ReporteRepository extends JpaRepository<Reporte, Long> {
 
     /** Casos que ninguna organización ha tomado todavía (para "Aceptar caso"). */
     List<Reporte> findByIdOrganizacionIsNull();
+
+    // HU-22: casos que reviso un voluntario (participa del chat del caso).
+    List<Reporte> findByIdRevisor(Long idRevisor);
 }

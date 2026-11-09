@@ -9,7 +9,9 @@ import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.security.Principal;
+import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -25,6 +27,8 @@ public class PresenciaService {
     private final EventoWebSocketService eventos;
     private final ParticipanteCasoService participanteCasoService;
     private final Map<Long, Integer> sesionesPorUsuario = new ConcurrentHashMap<>();
+    /** HU-22: cuando se desconecto cada usuario por ultima vez (en memoria, desde el arranque). */
+    private final Map<Long, LocalDateTime> ultimaVezPorUsuario = new ConcurrentHashMap<>();
 
     public PresenciaService(EventoWebSocketService eventos,
                             ParticipanteCasoService participanteCasoService) {
@@ -54,9 +58,23 @@ public class PresenciaService {
         Integer sesiones = sesionesPorUsuario.computeIfPresent(principal.getIdUsuario(),
                 (id, actual) -> actual > 1 ? actual - 1 : null);
         if (sesiones == null) {
+            ultimaVezPorUsuario.put(principal.getIdUsuario(), LocalDateTime.now());
             logger.info("Usuario ID {} fuera de linea", principal.getIdUsuario());
             publicarPresencia(principal.getIdUsuario(), false);
         }
+    }
+
+    /** HU-22: si el usuario tiene al menos una conexion WebSocket abierta. */
+    public boolean enLinea(Long idUsuario) {
+        return idUsuario != null && sesionesPorUsuario.containsKey(idUsuario);
+    }
+
+    /** HU-22: ultima desconexion conocida, o vacio si no se sabe o esta en linea. */
+    public Optional<LocalDateTime> ultimaVez(Long idUsuario) {
+        if (idUsuario == null || enLinea(idUsuario)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(ultimaVezPorUsuario.get(idUsuario));
     }
 
     private void publicarPresencia(Long idUsuario, boolean enLinea) {

@@ -18,7 +18,7 @@ nativo** (sin SockJS), por ejemplo con `@stomp/stompjs`.
 | Sala                    | Destino STOMP              | Quien puede suscribirse                      |
 |-------------------------|----------------------------|----------------------------------------------|
 | Personal del usuario    | `/topic/usuarios/{idUsuario}` | Solo ese usuario                          |
-| Chat de un caso         | `/topic/casos/{idCaso}`    | Solo participantes del caso (reportante o representante de la organizacion asignada) |
+| Chat de un caso         | `/topic/casos/{idCaso}`    | Solo participantes del caso (reportante, representante de la organizacion asignada o voluntario que reviso el reporte) |
 
 Suscribirse a una sala sin permiso cierra la conexion con error de acceso.
 
@@ -67,14 +67,40 @@ lo usa para descartar duplicados.
 ```
 
 ### `chat.message` — sala del caso
-Reservado para HU-22 (#41), que persiste y difunde el mensaje:
+HU-22 (#41): cada mensaje del chat del caso se guarda y se difunde con el mismo formato
+que devuelve el historial (`GET /api/casos/{idCaso}/chat/mensajes`). `tipo` es `TEXTO`,
+`UBICACION` (con `latitud` y `longitud`) o `FOTO` (con `fotoUrl`):
 ```json
 {
   "tipo": "chat.message",
   "emitidoEn": "2026-10-19T15:30:10Z",
-  "datos": { "idCaso": 101, "idMensaje": 500, "idEmisor": 9, "contenido": "Voy en camino" }
+  "datos": {
+    "idMensaje": 500,
+    "idCaso": 101,
+    "idEmisor": 9,
+    "nombreEmisor": "Ana Quiroga",
+    "tipo": "TEXTO",
+    "contenido": "Voy en camino",
+    "latitud": null,
+    "longitud": null,
+    "fotoUrl": null,
+    "fechaEnvio": "2026-10-19T11:30:10"
+  }
 }
 ```
+
+Los mensajes se envian por REST (no por STOMP), asi pasan por la misma validacion y
+seguridad que el resto de la API:
+
+| Accion | Endpoint |
+|---|---|
+| Historial | `GET /api/casos/{idCaso}/chat/mensajes` |
+| Texto o ubicacion | `POST /api/casos/{idCaso}/chat/mensajes` con `{ "contenido" }` o `{ "latitud", "longitud", "contenido"? }` |
+| Foto | `POST /api/casos/{idCaso}/chat/fotos` (multipart: `foto`, `comentario` opcional) |
+| Participantes y presencia | `GET /api/casos/{idCaso}/chat/participantes` |
+
+Participan el reportante, el representante de la organizacion que tomo el caso y el
+voluntario que reviso el reporte.
 
 ### `user.online` — sala personal y salas de los casos del usuario
 ```json

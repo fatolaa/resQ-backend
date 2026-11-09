@@ -1,5 +1,6 @@
 package com.resq.backend.websocket;
 
+import com.resq.backend.dto.ParticipanteChatDTO;
 import com.resq.backend.entity.Organizacion;
 import com.resq.backend.entity.Reporte;
 import com.resq.backend.repository.OrganizacionRepository;
@@ -7,14 +8,18 @@ import com.resq.backend.repository.ReporteRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
  * HU-38a: decide quien participa de un caso, que es la condicion para recibir eventos
- * de la sala case:{id}. Hoy participan el reportante y el representante de la
- * organizacion que tomo el caso. HU-22 (#41) extiende el criterio (participantes del
- * chat) sin tocar el transporte.
+ * de la sala case:{id}. Participan el reportante y el representante de la organizacion
+ * que tomo el caso.
+ *
+ * HU-22: tambien participa el voluntario que reviso y aprobo el reporte (idRevisor), y
+ * esta misma regla decide quien puede leer y escribir en el chat del caso.
  */
 @Service
 public class ParticipanteCasoService {
@@ -46,6 +51,9 @@ public class ParticipanteCasoService {
         for (Reporte reporte : reporteRepository.findByIdUsuario(idUsuario)) {
             agregarSinDuplicar(ids, reporte.getIdReporte());
         }
+        for (Reporte reporte : reporteRepository.findByIdRevisor(idUsuario)) {
+            agregarSinDuplicar(ids, reporte.getIdReporte());
+        }
         Optional<Organizacion> organizacion = organizacionRepository.findByIdRepresentante(idUsuario);
         if (organizacion.isPresent()) {
             for (Reporte reporte : reporteRepository.findByIdOrganizacion(organizacion.get().getIdOrganizacion())) {
@@ -55,8 +63,32 @@ public class ParticipanteCasoService {
         return ids;
     }
 
+    /**
+     * HU-22: los participantes del caso con su rol, sin repetir (el reportante puede ser
+     * tambien el representante). Vacio si el caso no existe.
+     */
+    public Map<Long, String> participantes(Long idCaso) {
+        Map<Long, String> participantes = new LinkedHashMap<>();
+        if (idCaso == null) {
+            return participantes;
+        }
+        reporteRepository.findById(idCaso).ifPresent(reporte -> {
+            participantes.put(reporte.getIdUsuario(), ParticipanteChatDTO.REPORTANTE);
+            if (reporte.getIdOrganizacion() != null) {
+                organizacionRepository.findById(reporte.getIdOrganizacion())
+                        .map(Organizacion::getIdRepresentante)
+                        .ifPresent(id -> participantes.putIfAbsent(id, ParticipanteChatDTO.ORGANIZACION));
+            }
+            if (reporte.getIdRevisor() != null) {
+                participantes.putIfAbsent(reporte.getIdRevisor(), ParticipanteChatDTO.VOLUNTARIO);
+            }
+        });
+        participantes.remove(null);
+        return participantes;
+    }
+
     private boolean esParticipante(Reporte reporte, Long idUsuario) {
-        if (idUsuario.equals(reporte.getIdUsuario())) {
+        if (idUsuario.equals(reporte.getIdUsuario()) || idUsuario.equals(reporte.getIdRevisor())) {
             return true;
         }
         return reporte.getIdOrganizacion() != null && esRepresentanteDe(reporte, idUsuario);

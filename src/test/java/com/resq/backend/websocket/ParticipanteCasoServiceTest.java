@@ -99,4 +99,49 @@ class ParticipanteCasoServiceTest {
 
         assertThat(servicio.casosDe(7L)).containsExactly(101L, 102L, 103L);
     }
+
+    // ---------------------------------------------------------------- HU-22
+
+    @Test
+    @DisplayName("HU-22: el voluntario que reviso el reporte participa del caso")
+    void elVoluntarioRevisorParticipa() {
+        Reporte reporte = reporteDe(101L, 7L, null);
+        reporte.setIdRevisor(12L);
+        when(reporteRepository.findById(101L)).thenReturn(Optional.of(reporte));
+
+        assertThat(servicio.participa(12L, 101L)).isTrue();
+        assertThat(servicio.participa(13L, 101L)).isFalse();
+    }
+
+    @Test
+    @DisplayName("HU-22: los casos del voluntario incluyen los que reviso")
+    void casosDelVoluntarioRevisor() {
+        when(reporteRepository.findByIdUsuario(12L)).thenReturn(List.of());
+        when(reporteRepository.findByIdRevisor(12L)).thenReturn(List.of(reporteDe(101L, 7L, null)));
+        when(organizacionRepository.findByIdRepresentante(12L)).thenReturn(Optional.empty());
+
+        assertThat(servicio.casosDe(12L)).containsExactly(101L);
+    }
+
+    @Test
+    @DisplayName("HU-22: participantes devuelve reportante, organizacion y voluntario con su rol, sin repetir")
+    void participantesConRol() {
+        Reporte reporte = reporteDe(101L, 7L, 3L);
+        reporte.setIdRevisor(12L);
+        when(reporteRepository.findById(101L)).thenReturn(Optional.of(reporte));
+        when(organizacionRepository.findById(3L)).thenReturn(Optional.of(organizacionDe(3L, 20L)));
+
+        assertThat(servicio.participantes(101L)).containsExactly(
+                java.util.Map.entry(7L, "REPORTANTE"),
+                java.util.Map.entry(20L, "ORGANIZACION"),
+                java.util.Map.entry(12L, "VOLUNTARIO"));
+    }
+
+    @Test
+    @DisplayName("HU-22: un caso inexistente no tiene participantes")
+    void participantesDeCasoInexistente() {
+        when(reporteRepository.findById(999L)).thenReturn(Optional.empty());
+
+        assertThat(servicio.participantes(999L)).isEmpty();
+    }
 }

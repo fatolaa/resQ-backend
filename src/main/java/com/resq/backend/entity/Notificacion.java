@@ -13,6 +13,8 @@ public class Notificacion {
     public static final String SOLICITUD_RECHAZADA = "SOLICITUD_RECHAZADA";
     public static final String SOLICITUD_VOLUNTARIO = "SOLICITUD_VOLUNTARIO";
     public static final String SISTEMA = "SISTEMA";
+    // HU-22: mensaje nuevo en el chat de un caso para un participante que no estaba en linea.
+    public static final String MENSAJE_CASO = "MENSAJE_CASO";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
