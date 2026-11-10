@@ -10,6 +10,8 @@ public final class TipoEventoWebSocket {
     public static final String CHAT_MENSAJE = "chat.message";
     public static final String CHAT_ESCRIBIENDO = "chat.typing";
     public static final String USUARIO_EN_LINEA = "user.online";
+    public static final String MENSAJE_NUEVO = "mensaje.nuevo";
+    public static final String MENSAJE_ELIMINADO = "mensaje.eliminado";
 
     private TipoEventoWebSocket() {
     }
