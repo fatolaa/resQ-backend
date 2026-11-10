@@ -7,6 +7,12 @@ import java.time.LocalDateTime;
 @Table(name = "mensaje")
 public class Mensaje {
 
+    public static final String TEXTO = "TEXTO";
+    public static final String IMAGEN = "IMAGEN";
+    public static final String ARCHIVO = "ARCHIVO";
+
+    public static final int CONTENIDO_MAX = 2000;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id_mensaje")
@@ -33,12 +39,30 @@ public class Mensaje {
     @Column(name = "leido", nullable = false)
     private boolean leido = false;
 
+    @Column(name = "tipo", length = 20)
+    private String tipo = TEXTO;
+
+    @Column(name = "url_adjunto", length = 300)
+    private String urlAdjunto;
+
+    @Column(name = "nombre_adjunto", length = 255)
+    private String nombreAdjunto;
+
+    @Column(name = "eliminado")
+    private boolean eliminado = false;
+
     public Mensaje() {}
 
     @PrePersist
     public void prePersist() {
         if (fechaEnvio == null) {
             fechaEnvio = LocalDateTime.now();
+        }
+        if (tipo == null) {
+            tipo = TEXTO;
+        }
+        if (contenido == null) {
+            contenido = "";
         }
     }
 
@@ -59,4 +83,12 @@ public class Mensaje {
     public void setArchivadoReceptor(boolean archivadoReceptor) { this.archivadoReceptor = archivadoReceptor; }
     public boolean isLeido() { return leido; }
     public void setLeido(boolean leido) { this.leido = leido; }
+    public String getTipo() { return tipo == null ? TEXTO : tipo; }
+    public void setTipo(String tipo) { this.tipo = tipo; }
+    public String getUrlAdjunto() { return urlAdjunto; }
+    public void setUrlAdjunto(String urlAdjunto) { this.urlAdjunto = urlAdjunto; }
+    public String getNombreAdjunto() { return nombreAdjunto; }
+    public void setNombreAdjunto(String nombreAdjunto) { this.nombreAdjunto = nombreAdjunto; }
+    public boolean isEliminado() { return eliminado; }
+    public void setEliminado(boolean eliminado) { this.eliminado = eliminado; }
 }

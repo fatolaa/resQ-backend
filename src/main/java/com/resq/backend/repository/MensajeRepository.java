@@ -14,4 +14,10 @@ public interface MensajeRepository extends JpaRepository<Mensaje, Long> {
     // Trae todos los mensajes entre dos usuarios ordenados por fecha
     @Query("SELECT m FROM Mensaje m WHERE (m.idEmisor = :u1 AND m.idReceptor = :u2) OR (m.idEmisor = :u2 AND m.idReceptor = :u1) ORDER BY m.fechaEnvio ASC")
     List<Mensaje> findConversacion(@Param("u1") Long u1, @Param("u2") Long u2);
+
+    @Query("SELECT m FROM Mensaje m WHERE (m.idEmisor = :u1 AND m.idReceptor = :u2) OR (m.idEmisor = :u2 AND m.idReceptor = :u1) ORDER BY m.fechaEnvio DESC, m.idMensaje DESC")
+    List<Mensaje> findConversacionDesc(@Param("u1") Long u1, @Param("u2") Long u2);
+
+    @Query("SELECT m FROM Mensaje m WHERE m.idEmisor = :id OR m.idReceptor = :id ORDER BY m.fechaEnvio DESC, m.idMensaje DESC")
+    List<Mensaje> findTodosDeUsuario(@Param("id") Long id);
 }
