@@ -115,6 +115,10 @@ public class SecurityConfig {
                         // admin-only: si no, un usuario comun no podria guardar sus preferencias.
                         .requestMatchers("/api/usuarios/me/preferencias-notificacion").authenticated()
 
+                        // Cada usuario corrige su propio nombre y telefono (contacto de sus
+                        // reportes). Misma razon: antes de la regla PATCH admin-only de abajo.
+                        .requestMatchers(HttpMethod.PATCH, "/api/usuarios/me").authenticated()
+
                         // HU-23: gestionar cuentas es exclusivo del administrador.
                         .requestMatchers(HttpMethod.GET, "/api/usuarios").hasRole(ROL_ADMIN)
                         .requestMatchers(HttpMethod.PUT, "/api/usuarios/**").hasRole(ROL_ADMIN)

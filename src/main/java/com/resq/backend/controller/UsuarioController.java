@@ -1,12 +1,15 @@
 package com.resq.backend.controller;
 
 import com.resq.backend.dto.ApiError;
+import com.resq.backend.dto.MiContactoDTO;
 import com.resq.backend.dto.UsuarioDTO;
 import com.resq.backend.dto.UsuarioRequestDTO;
 import com.resq.backend.dto.UsuarioUpdateDTO;
 import com.resq.backend.dto.VoluntarioRequestDTO;
 import com.resq.backend.entity.Usuario;
 import com.resq.backend.repository.UsuarioRepository;
+import com.resq.backend.security.UsuarioAutenticado;
+import com.resq.backend.validation.Telefonos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -19,6 +22,7 @@ import jakarta.validation.Valid;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @RestController
@@ -173,6 +177,41 @@ public class UsuarioController {
 
         Usuario guardado = usuarioRepository.save(usuario);
         logger.info("Usuario ID: {} actualizado parcialmente", id);
+        return ResponseEntity.ok(toDTO(guardado));
+    }
+
+    /**
+     * Cada usuario corrige su propio nombre y telefono (los que ve quien quiere ayudar
+     * en sus reportes). El resto de la cuenta lo sigue gestionando el administrador.
+     */
+    @PatchMapping("/me")
+    public ResponseEntity<?> actualizarMiContacto(@Valid @RequestBody MiContactoDTO datos) {
+        Long idActual = UsuarioAutenticado.idActual().orElse(null);
+        if (idActual == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new ApiError(HttpStatus.UNAUTHORIZED.value(), "Inicia sesión para editar tu cuenta", Map.of()));
+        }
+        Usuario usuario = usuarioRepository.findById(idActual).orElse(null);
+        if (usuario == null) {
+            return ResponseEntity.notFound().build();
+        }
+        if (datos.nombre() != null) {
+            if (datos.nombre().isBlank()) {
+                return ResponseEntity.badRequest()
+                        .body(new ApiError(HttpStatus.BAD_REQUEST.value(), "El nombre no puede quedar vacío", Map.of()));
+            }
+            usuario.setNombre(datos.nombre().trim());
+        }
+        if (datos.telefono() != null) {
+            try {
+                usuario.setTelefono(Telefonos.normalizar(datos.telefono()));
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest()
+                        .body(new ApiError(HttpStatus.BAD_REQUEST.value(), e.getMessage(), Map.of()));
+            }
+        }
+        Usuario guardado = usuarioRepository.save(usuario);
+        logger.info("Usuario ID {} actualizó su nombre o teléfono", idActual);
         return ResponseEntity.ok(toDTO(guardado));
     }
 
