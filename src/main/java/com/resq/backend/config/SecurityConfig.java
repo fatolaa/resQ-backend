@@ -94,6 +94,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/reportes/disponibles").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/reportes/organizacion/**").authenticated()
 
+                        // Contacto de quien reporta: nunca publico, solo con sesion. Tiene que ir
+                        // ANTES del permitAll de abajo, por la misma razon que las reglas de arriba.
+                        .requestMatchers(HttpMethod.GET, "/api/reportes/*/contacto").authenticated()
+
                         // El mapa del landing muestra casos a quien no ha iniciado sesion.
                         .requestMatchers(HttpMethod.GET, "/api/reportes/**").permitAll()
 
