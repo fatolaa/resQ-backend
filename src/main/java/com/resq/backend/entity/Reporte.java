@@ -2,6 +2,7 @@ package com.resq.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.resq.backend.validation.CoordenadasCoherentes;
+import com.resq.backend.validation.Telefonos;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
@@ -77,6 +78,23 @@ public class Reporte {
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Column(name = "id_organizacion")
     private Long idOrganizacion;
+
+    // ---- Contacto de quien reporta (opcional, elegido en cada reporte) ----
+    // Nunca sale en el JSON publico del reporte (GET /api/reportes es publico):
+    // se consulta con sesion en GET /api/reportes/{id}/contacto. Los reportes
+    // anteriores quedan con ambos en null, es decir, sin contacto.
+
+    /** Si quien reporta acepta mostrar el telefono de su cuenta (se lee de la cuenta, no se copia). */
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @Column(name = "compartir_telefono_cuenta")
+    private Boolean compartirTelefonoCuenta;
+
+    /** Otro telefono solo para este caso; se puede usar junto con el de la cuenta. */
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @Pattern(regexp = Telefonos.PATRON_ENTRADA,
+            message = "El teléfono debe tener entre 7 y 15 dígitos")
+    @Column(name = "telefono_contacto", length = 20)
+    private String telefonoContacto;
 
     public Reporte() {
     }
@@ -203,5 +221,34 @@ public class Reporte {
     // HU-21
     public void setIdOrganizacion(Long idOrganizacion) {
         this.idOrganizacion = idOrganizacion;
+    }
+
+    public Boolean getCompartirTelefonoCuenta() {
+        return compartirTelefonoCuenta;
+    }
+
+    public void setCompartirTelefonoCuenta(Boolean compartirTelefonoCuenta) {
+        this.compartirTelefonoCuenta = compartirTelefonoCuenta;
+    }
+
+    public String getTelefonoContacto() {
+        return telefonoContacto;
+    }
+
+    public void setTelefonoContacto(String telefonoContacto) {
+        this.telefonoContacto = telefonoContacto;
+    }
+
+    /**
+     * Lo unico del contacto que es publico: si el caso tiene un telefono para
+     * mostrar. Asi el detalle puede decir "inicia sesion para ver el contacto".
+     */
+    @Transient
+    @JsonProperty(value = "tieneContacto", access = JsonProperty.Access.READ_ONLY)
+    public boolean tieneContacto() {
+        boolean abierto = "PENDIENTE".equals(estado) || "EN_PROCESO".equals(estado);
+        boolean hayTelefono = Boolean.TRUE.equals(compartirTelefonoCuenta)
+                || (telefonoContacto != null && !telefonoContacto.isBlank());
+        return abierto && hayTelefono;
     }
 }
