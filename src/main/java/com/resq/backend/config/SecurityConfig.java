@@ -128,6 +128,12 @@ public class SecurityConfig {
                         // Ver un usuario concreto: lo puede pedir su propietario o el administrador.
                         .requestMatchers(HttpMethod.GET, "/api/usuarios/**").authenticated()
 
+                        // Rediseño: nombre, tipo y logo de las organizaciones verificadas se
+                        // muestran sin sesion (Inicio y detalle del caso). Tiene que ir ANTES de
+                        // la regla de abajo, que exige sesion para todo /api/organizaciones/**.
+                        .requestMatchers(HttpMethod.GET, "/api/organizaciones/publicas", "/api/organizaciones/publicas/*")
+                        .permitAll()
+
                         // HU-29: el directorio de organizaciones lo consultan usuarios y
                         // voluntarios con sesión iniciada; solo expone verificadas.
                         .requestMatchers(HttpMethod.GET, "/api/organizaciones", "/api/organizaciones/**")
