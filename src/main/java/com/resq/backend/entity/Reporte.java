@@ -99,6 +99,15 @@ public class Reporte {
     @Column(name = "tamano", length = 20)
     private String tamano;
 
+    /**
+     * Rediseño: necesidades elegidas al crear el reporte (TRANSPORTE, VETERINARIO...).
+     * Solo se reciben; se guardan como NecesidadCaso y se consultan en
+     * GET /api/reportes/{id}/necesidades.
+     */
+    @Transient
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private java.util.List<String> necesidades;
+
     // ---- Contacto de quien reporta (opcional, elegido en cada reporte) ----
     // Nunca sale en el JSON publico del reporte (GET /api/reportes es publico):
     // se consulta con sesion en GET /api/reportes/{id}/contacto. Los reportes
@@ -302,5 +311,13 @@ public class Reporte {
 
     public void setTamano(String tamano) {
         this.tamano = tamano;
+    }
+
+    public java.util.List<String> getNecesidades() {
+        return necesidades;
+    }
+
+    public void setNecesidades(java.util.List<String> necesidades) {
+        this.necesidades = necesidades;
     }
 }

@@ -12,6 +12,7 @@ import com.resq.backend.repository.ReporteRepository;
 import com.resq.backend.repository.SeguimientoCasoRepository;
 import com.resq.backend.security.UsuarioAutenticado;
 import com.resq.backend.service.ContactoReporteService;
+import com.resq.backend.service.NecesidadCasoService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.validation.Valid;
@@ -44,44 +45,69 @@ public class ReporteController {
     private final OrganizacionRepository organizacionRepository; // HU-21
     private final SeguimientoCasoRepository seguimientoCasoRepository; // HU-21
 
-    // Contacto de quien reporta. Puede faltar (tests que arman el controlador a mano):
-    // en ese caso el reporte se guarda sin contacto.
+    // Contacto de quien reporta y necesidades del caso (rediseño). Pueden faltar en los
+    // tests que arman el controlador a mano: el reporte se guarda sin contacto ni necesidades.
     private final ContactoReporteService contactoReporteService;
+    private final NecesidadCasoService necesidadCasoService;
 
     public ReporteController(ReporteRepository reporteRepository,
                               OrganizacionRepository organizacionRepository,
                               SeguimientoCasoRepository seguimientoCasoRepository) {
-        this(reporteRepository, organizacionRepository, seguimientoCasoRepository, (ContactoReporteService) null);
+        this(reporteRepository, organizacionRepository, seguimientoCasoRepository,
+                (ContactoReporteService) null, (NecesidadCasoService) null);
     }
 
     @Autowired
     public ReporteController(ReporteRepository reporteRepository,
                               OrganizacionRepository organizacionRepository,
                               SeguimientoCasoRepository seguimientoCasoRepository,
-                              ObjectProvider<ContactoReporteService> contactoReporteService) {
+                              ObjectProvider<ContactoReporteService> contactoReporteService,
+                              ObjectProvider<NecesidadCasoService> necesidadCasoService) {
         this(reporteRepository, organizacionRepository, seguimientoCasoRepository,
-                contactoReporteService.getIfAvailable());
+                contactoReporteService.getIfAvailable(), necesidadCasoService.getIfAvailable());
     }
 
     ReporteController(ReporteRepository reporteRepository,
                       OrganizacionRepository organizacionRepository,
                       SeguimientoCasoRepository seguimientoCasoRepository,
-                      ContactoReporteService contactoReporteService) {
+                      ContactoReporteService contactoReporteService,
+                      NecesidadCasoService necesidadCasoService) {
         this.reporteRepository = reporteRepository;
         this.organizacionRepository = organizacionRepository;
         this.seguimientoCasoRepository = seguimientoCasoRepository;
         this.contactoReporteService = contactoReporteService;
+        this.necesidadCasoService = necesidadCasoService;
     }
 
     public ResponseEntity<?> obtenerReportes(String estado) {
         return obtenerReportes(estado, null, null);
     }
 
+    /**
+     * Rediseño: mismo listado, con el filtro "Necesita" de Casos (casos que todavia
+     * buscan ese tipo de ayuda).
+     */
     @GetMapping
     public ResponseEntity<?> obtenerReportes(
             @RequestParam(name = "estado", required = false) String estado,
             @RequestParam(name = "busqueda", required = false) String busqueda,
-            @RequestParam(name = "orden", required = false) String orden) {
+            @RequestParam(name = "orden", required = false) String orden,
+            @RequestParam(name = "necesidad", required = false) String necesidad) {
+        ResponseEntity<?> respuesta = obtenerReportes(estado, busqueda, orden);
+        if (necesidad == null || necesidad.isBlank() || necesidadCasoService == null
+                || !(respuesta.getBody() instanceof List<?> lista)) {
+            return respuesta;
+        }
+        java.util.Set<Long> ids = necesidadCasoService.casosQueBuscan(necesidad);
+        return ResponseEntity.ok(lista.stream()
+                .filter(r -> r instanceof Reporte reporte && ids.contains(reporte.getIdReporte()))
+                .toList());
+    }
+
+    public ResponseEntity<?> obtenerReportes(
+            String estado,
+            String busqueda,
+            String orden) {
         logger.info("Listando reportes. estado={}, busqueda={}, orden={}", estado, busqueda, orden);
 
         List<String> estados = parsearEstados(estado);
@@ -217,7 +243,13 @@ public class ReporteController {
             reporte.setCompartirTelefonoCuenta(false);
             reporte.setTelefonoContacto(null);
         }
+        // Necesidades elegidas al reportar: se validan antes de guardar el reporte.
+        List<String> necesidades = necesidadCasoService == null ? List.of()
+                : necesidadCasoService.validarTipos(reporte.getNecesidades());
         Reporte guardado = reporteRepository.save(reporte);
+        if (!necesidades.isEmpty()) {
+            necesidadCasoService.crearIniciales(guardado.getIdReporte(), necesidades);
+        }
         logger.info("Reporte creado correctamente con ID: {}", guardado.getIdReporte());
         return ResponseEntity.status(HttpStatus.CREATED).body(guardado);
     }
