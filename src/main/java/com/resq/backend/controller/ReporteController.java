@@ -209,6 +209,7 @@ public class ReporteController {
     public ResponseEntity<Reporte> crearReporte(@Valid @RequestBody Reporte reporte) {
         logger.info("Iniciando creación de reporte. Usuario ID: {}, tipo: {}",
                 reporte.getIdUsuario(), reporte.getTipoCaso());
+        reporte.setReferencia(limpiar(reporte.getReferencia()));
         // Contacto opcional de quien reporta: se valida (y se limpia el telefono) antes de guardar.
         if (contactoReporteService != null) {
             contactoReporteService.prepararParaGuardar(reporte);
@@ -233,6 +234,20 @@ public class ReporteController {
                     reporte.setFotoUrl(datosReporte.getFotoUrl());
                     reporte.setLatitud(datosReporte.getLatitud());
                     reporte.setLongitud(datosReporte.getLongitud());
+                    // Datos del rediseño: solo se cambian si vienen, para que las pantallas
+                    // que todavia no los conocen no los borren al editar.
+                    if (datosReporte.getReferencia() != null) {
+                        reporte.setReferencia(limpiar(datosReporte.getReferencia()));
+                    }
+                    if (datosReporte.getEspecie() != null) {
+                        reporte.setEspecie(datosReporte.getEspecie());
+                    }
+                    if (datosReporte.getEdad() != null) {
+                        reporte.setEdad(datosReporte.getEdad());
+                    }
+                    if (datosReporte.getTamano() != null) {
+                        reporte.setTamano(datosReporte.getTamano());
+                    }
                     Reporte guardado = reporteRepository.save(reporte);
                     logger.info("Reporte ID: {} actualizado correctamente", id);
                     return ResponseEntity.ok(guardado);
@@ -488,5 +503,10 @@ public class ReporteController {
         SeguimientoCaso guardado = seguimientoCasoRepository.save(seguimiento);
         logger.info("Seguimiento agregado al caso ID: {} por organización ID: {}", id, idOrganizacionCaso);
         return ResponseEntity.status(HttpStatus.CREATED).body(guardado);
+    }
+
+    /** Texto opcional: vacio cuenta como sin dato. */
+    private static String limpiar(String texto) {
+        return texto == null || texto.isBlank() ? null : texto.trim();
     }
 }

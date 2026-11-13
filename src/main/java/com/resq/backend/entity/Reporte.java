@@ -9,6 +9,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 
@@ -78,6 +79,25 @@ public class Reporte {
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Column(name = "id_organizacion")
     private Long idOrganizacion;
+
+    // ---- Rediseño: datos opcionales del animal y del lugar ----
+
+    /** Referencia del lugar en texto ("frente a la farmacia"), ademas del pin del mapa. */
+    @Size(max = 200, message = "La referencia no puede superar los 200 caracteres")
+    @Column(name = "referencia", length = 200)
+    private String referencia;
+
+    @Pattern(regexp = "PERRO|GATO|OTRO", message = "Especie inválida")
+    @Column(name = "especie", length = 20)
+    private String especie;
+
+    @Pattern(regexp = "CACHORRO|ADULTO|MAYOR", message = "Edad inválida")
+    @Column(name = "edad", length = 20)
+    private String edad;
+
+    @Pattern(regexp = "PEQUENO|MEDIANO|GRANDE", message = "Tamaño inválido")
+    @Column(name = "tamano", length = 20)
+    private String tamano;
 
     // ---- Contacto de quien reporta (opcional, elegido en cada reporte) ----
     // Nunca sale en el JSON publico del reporte (GET /api/reportes es publico):
@@ -250,5 +270,37 @@ public class Reporte {
         boolean hayTelefono = Boolean.TRUE.equals(compartirTelefonoCuenta)
                 || (telefonoContacto != null && !telefonoContacto.isBlank());
         return abierto && hayTelefono;
+    }
+
+    public String getReferencia() {
+        return referencia;
+    }
+
+    public void setReferencia(String referencia) {
+        this.referencia = referencia;
+    }
+
+    public String getEspecie() {
+        return especie;
+    }
+
+    public void setEspecie(String especie) {
+        this.especie = especie;
+    }
+
+    public String getEdad() {
+        return edad;
+    }
+
+    public void setEdad(String edad) {
+        this.edad = edad;
+    }
+
+    public String getTamano() {
+        return tamano;
+    }
+
+    public void setTamano(String tamano) {
+        this.tamano = tamano;
     }
 }
