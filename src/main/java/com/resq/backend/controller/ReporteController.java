@@ -11,6 +11,9 @@ import com.resq.backend.repository.OrganizacionRepository;
 import com.resq.backend.repository.ReporteRepository;
 import com.resq.backend.repository.SeguimientoCasoRepository;
 import com.resq.backend.security.UsuarioAutenticado;
+import com.resq.backend.service.ContactoReporteService;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,12 +44,33 @@ public class ReporteController {
     private final OrganizacionRepository organizacionRepository; // HU-21
     private final SeguimientoCasoRepository seguimientoCasoRepository; // HU-21
 
+    // Contacto de quien reporta. Puede faltar (tests que arman el controlador a mano):
+    // en ese caso el reporte se guarda sin contacto.
+    private final ContactoReporteService contactoReporteService;
+
     public ReporteController(ReporteRepository reporteRepository,
                               OrganizacionRepository organizacionRepository,
                               SeguimientoCasoRepository seguimientoCasoRepository) {
+        this(reporteRepository, organizacionRepository, seguimientoCasoRepository, (ContactoReporteService) null);
+    }
+
+    @Autowired
+    public ReporteController(ReporteRepository reporteRepository,
+                              OrganizacionRepository organizacionRepository,
+                              SeguimientoCasoRepository seguimientoCasoRepository,
+                              ObjectProvider<ContactoReporteService> contactoReporteService) {
+        this(reporteRepository, organizacionRepository, seguimientoCasoRepository,
+                contactoReporteService.getIfAvailable());
+    }
+
+    ReporteController(ReporteRepository reporteRepository,
+                      OrganizacionRepository organizacionRepository,
+                      SeguimientoCasoRepository seguimientoCasoRepository,
+                      ContactoReporteService contactoReporteService) {
         this.reporteRepository = reporteRepository;
         this.organizacionRepository = organizacionRepository;
         this.seguimientoCasoRepository = seguimientoCasoRepository;
+        this.contactoReporteService = contactoReporteService;
     }
 
     public ResponseEntity<?> obtenerReportes(String estado) {
@@ -185,6 +209,13 @@ public class ReporteController {
     public ResponseEntity<Reporte> crearReporte(@Valid @RequestBody Reporte reporte) {
         logger.info("Iniciando creación de reporte. Usuario ID: {}, tipo: {}",
                 reporte.getIdUsuario(), reporte.getTipoCaso());
+        // Contacto opcional de quien reporta: se valida (y se limpia el telefono) antes de guardar.
+        if (contactoReporteService != null) {
+            contactoReporteService.prepararParaGuardar(reporte);
+        } else {
+            reporte.setCompartirTelefonoCuenta(false);
+            reporte.setTelefonoContacto(null);
+        }
         Reporte guardado = reporteRepository.save(reporte);
         logger.info("Reporte creado correctamente con ID: {}", guardado.getIdReporte());
         return ResponseEntity.status(HttpStatus.CREATED).body(guardado);
