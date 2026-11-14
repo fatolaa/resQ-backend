@@ -55,6 +55,15 @@ public class ConversacionController {
         return ResponseEntity.ok(conversacionService.abrirConversacion(idUsuario.get(), datos));
     }
 
+    @GetMapping("/directorio")
+    public ResponseEntity<?> directorio(@RequestParam(value = "nombre", required = false) String nombre) {
+        Optional<Long> idUsuario = UsuarioAutenticado.idActual();
+        if (idUsuario.isEmpty()) {
+            return sinSesion();
+        }
+        return ResponseEntity.ok(conversacionService.buscarUsuarios(idUsuario.get(), nombre));
+    }
+
     @GetMapping("/{idConversacion}/mensajes")
     public ResponseEntity<?> mensajes(@PathVariable Long idConversacion) {
         Optional<Long> idUsuario = UsuarioAutenticado.idActual();

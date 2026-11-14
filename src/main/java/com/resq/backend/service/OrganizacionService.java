@@ -116,12 +116,25 @@ public class OrganizacionService {
      * valida para no devolver un directorio vacío silenciosamente ante un valor mal escrito.
      */
     public List<Organizacion> consultarDirectorio(String tipo, String zona) {
+        return consultarDirectorio(tipo, zona, null);
+    }
+
+    /**
+     * TT-49: agrega el filtro por nombre para la busqueda de la bandeja de chat.
+     * Sin `nombre` el comportamiento es el de siempre (tipo y zona).
+     */
+    public List<Organizacion> consultarDirectorio(String tipo, String zona, String nombre) {
         String tipoFiltro = normalizarTipoFiltro(tipo);
         String zonaFiltro = limpiar(zona);
+        String nombreFiltro = limpiar(nombre);
 
         return organizacionRepository.findByEstadoVerificacion(EstadoVerificacion.VERIFICADA).stream()
                 .filter(o -> tipoFiltro == null || tipoFiltro.equalsIgnoreCase(o.getTipo()))
                 .filter(o -> zonaFiltro == null || coincideZona(o.getZonasCobertura(), zonaFiltro))
+                .filter(o -> nombreFiltro == null
+                        || (o.getNombre() != null
+                        && o.getNombre().toLowerCase(java.util.Locale.ROOT)
+                                .contains(nombreFiltro.toLowerCase(java.util.Locale.ROOT))))
                 .sorted(Comparator.comparing(Organizacion::getNombre, String.CASE_INSENSITIVE_ORDER))
                 .toList();
     }
