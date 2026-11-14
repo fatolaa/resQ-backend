@@ -2,6 +2,7 @@ package com.resq.backend.service;
 
 import com.resq.backend.dto.AbrirConversacionRequestDTO;
 import com.resq.backend.dto.ConversacionResumenDTO;
+import com.resq.backend.dto.DirectorioUsuarioDTO;
 import com.resq.backend.dto.MensajeDTO;
 import com.resq.backend.dto.MensajeEliminadoEventoDTO;
 import com.resq.backend.dto.MensajeNuevoEventoDTO;
@@ -61,8 +62,7 @@ public class ConversacionService {
     }
 
     @Transactional(readOnly = true)
-    public List<ConversacionResumenDTO> obtenerConversaciones(Long idUsuario) {
-        Map<Long, Mensaje> ultimos = new LinkedHashMap<>();
+    public List<ConversacionResumenDTO> obtenerConversaciones(Long idUsuario) {        Map<Long, Mensaje> ultimos = new LinkedHashMap<>();
         for (Mensaje mensaje : mensajeRepository.findTodosDeUsuario(idUsuario)) {
             Long idOtro = mensaje.getIdEmisor().equals(idUsuario)
                     ? mensaje.getIdReceptor()
@@ -85,6 +85,27 @@ public class ConversacionService {
             return b.fechaUltimoMensaje().compareTo(a.fechaUltimoMensaje());
         });
         return resultado;
+    }
+
+    /**
+     * TT-49: directorio minimo de usuarios para iniciar una conversacion.
+     * Excluye al propio usuario y a quienes tienen un bloqueo en cualquier
+     * direccion. El filtro exige al menos dos caracteres para no volcar todo
+     * el padron en cada pulsacion.
+     */
+    @Transactional(readOnly = true)
+    public List<DirectorioUsuarioDTO> buscarUsuarios(Long idUsuario, String nombre) {
+        String filtro = nombre == null ? "" : nombre.trim();
+        if (filtro.length() < 2) {
+            return List.of();
+        }
+        return usuarioRepository
+                .findTop20ByNombreContainingIgnoreCaseAndIdUsuarioNotOrderByNombreAsc(filtro, idUsuario)
+                .stream()
+                .filter(otro -> !bloqueos.estaBloqueado(idUsuario, otro.getIdUsuario())
+                        && !bloqueos.estaBloqueado(otro.getIdUsuario(), idUsuario))
+                .map(otro -> new DirectorioUsuarioDTO(otro.getIdUsuario(), otro.getNombre(), otro.getRol()))
+                .toList();
     }
 
     @Transactional(readOnly = true)
