@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -38,12 +39,25 @@ public class ConversacionController {
     }
 
     @GetMapping
-    public ResponseEntity<?> listar() {
+    public ResponseEntity<?> listar(@RequestParam(value = "busqueda", required = false) String busqueda,
+                                    @RequestParam(value = "archivadas", required = false) Boolean archivadas) {
         Optional<Long> idUsuario = UsuarioAutenticado.idActual();
         if (idUsuario.isEmpty()) {
             return sinSesion();
         }
-        return ResponseEntity.ok(conversacionService.obtenerConversaciones(idUsuario.get()));
+        return ResponseEntity.ok(conversacionService.obtenerConversaciones(idUsuario.get(), busqueda, archivadas));
+    }
+
+    /** TT-50: archiva o desarchiva una conversacion propia. */
+    @PatchMapping("/{idConversacion}/archivar")
+    public ResponseEntity<?> archivar(@PathVariable Long idConversacion,
+                                      @RequestParam(value = "archivar", defaultValue = "true") boolean archivar) {
+        Optional<Long> idUsuario = UsuarioAutenticado.idActual();
+        if (idUsuario.isEmpty()) {
+            return sinSesion();
+        }
+        conversacionService.archivarConversacion(idUsuario.get(), idConversacion, archivar);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping

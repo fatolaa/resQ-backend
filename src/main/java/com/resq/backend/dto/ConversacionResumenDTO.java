@@ -8,5 +8,6 @@ public record ConversacionResumenDTO(
         String nombre,
         boolean esOrganizacion,
         String ultimoMensaje,
-        LocalDateTime fechaUltimoMensaje) {
+        LocalDateTime fechaUltimoMensaje,
+        boolean archivada) {
 }
