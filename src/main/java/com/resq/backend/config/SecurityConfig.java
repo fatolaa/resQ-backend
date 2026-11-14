@@ -141,9 +141,8 @@ public class SecurityConfig {
                         // requiere que el usuario este autenticado.
                         .requestMatchers("/api/chat/**").authenticated()
 
-                        // HU-27: los adjuntos se muestran con <img>/<a>, que no pasan por el
-                        // interceptor de Angular y por eso nunca envian el token.
-                        .requestMatchers(HttpMethod.GET, "/api/conversaciones/adjuntos/**").permitAll()
+                        // TT-54: los adjuntos privados se descargan por HTTP autenticado.
+                        .requestMatchers(HttpMethod.GET, "/api/conversaciones/adjuntos/**").authenticated()
 
                         // HU-27: conversaciones y mensajes entre usuarios exigen sesion.
                         .requestMatchers("/api/conversaciones/**", "/api/mensajes/**").authenticated()
