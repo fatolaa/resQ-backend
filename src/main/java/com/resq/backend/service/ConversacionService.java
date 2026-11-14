@@ -44,17 +44,20 @@ public class ConversacionService {
     private final OrganizacionRepository organizacionRepository;
     private final AdjuntoMensajeStorageService adjuntoStorage;
     private final EventoWebSocketService eventos;
+    private final BloqueoService bloqueos;
 
     public ConversacionService(MensajeRepository mensajeRepository,
                                UsuarioRepository usuarioRepository,
                                OrganizacionRepository organizacionRepository,
                                AdjuntoMensajeStorageService adjuntoStorage,
-                               EventoWebSocketService eventos) {
+                               EventoWebSocketService eventos,
+                               BloqueoService bloqueos) {
         this.mensajeRepository = mensajeRepository;
         this.usuarioRepository = usuarioRepository;
         this.organizacionRepository = organizacionRepository;
         this.adjuntoStorage = adjuntoStorage;
         this.eventos = eventos;
+        this.bloqueos = bloqueos;
     }
 
     @Transactional(readOnly = true)
@@ -108,6 +111,7 @@ public class ConversacionService {
         if (!usuarioRepository.existsById(idOtro)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "El usuario no existe");
         }
+        exigirSinBloqueo(idUsuario, idOtro);
         if (organizacion.isEmpty()) {
             organizacion = organizacionRepository.findByIdRepresentante(idOtro);
         }
@@ -137,6 +141,7 @@ public class ConversacionService {
     @Transactional
     public MensajeDTO enviarMensaje(Long idUsuario, Long idConversacion, String contenido, MultipartFile archivo) {
         exigirConversacion(idUsuario, idConversacion);
+        exigirSinBloqueo(idUsuario, idConversacion);
 
         String texto = contenido == null ? "" : contenido.trim();
         if (texto.length() > Mensaje.CONTENIDO_MAX) {
@@ -244,6 +249,13 @@ public class ConversacionService {
         }
         if (!usuarioRepository.existsById(idConversacion)) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "El usuario no existe");
+        }
+    }
+
+    private void exigirSinBloqueo(Long emisor, Long receptor) {
+        if (bloqueos.estaBloqueado(emisor, receptor) || bloqueos.estaBloqueado(receptor, emisor)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "No puedes iniciar ni enviar mensajes mientras exista un bloqueo entre los participantes");
         }
     }
 
