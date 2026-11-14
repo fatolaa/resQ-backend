@@ -136,7 +136,28 @@ public class ConversacionService {
 
     @Transactional
     public MensajeDTO enviarMensaje(Long idUsuario, Long idConversacion, String contenido, MultipartFile archivo) {
+        return enviarMensaje(idUsuario, idConversacion, contenido, archivo, null);
+    }
+
+    @Transactional
+    public MensajeDTO enviarMensaje(Long idUsuario, Long idConversacion, String contenido, MultipartFile archivo, String claveEnvio) {
         exigirConversacion(idUsuario, idConversacion);
+
+        if (claveEnvio != null) {
+            if (!claveEnvio.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Clave de envio invalida");
+            }
+            // Serializa reintentos del mismo emisor en la base, incluso entre instancias.
+            usuarioRepository.bloquearParaEnvio(idUsuario).orElseThrow(() ->
+                    new ResponseStatusException(HttpStatus.NOT_FOUND, "El usuario no existe"));
+            var existente = mensajeRepository.findByIdEmisorAndClaveEnvio(idUsuario, claveEnvio);
+            if (existente.isPresent()) {
+                if (!existente.get().getIdReceptor().equals(idConversacion)) {
+                    throw new ResponseStatusException(HttpStatus.CONFLICT, "Clave usada en otra conversacion");
+                }
+                return MensajeDTO.de(existente.get(), idUsuario);
+            }
+        }
 
         String texto = contenido == null ? "" : contenido.trim();
         if (texto.length() > Mensaje.CONTENIDO_MAX) {
@@ -150,6 +171,7 @@ public class ConversacionService {
         }
 
         Mensaje mensaje = new Mensaje();
+        mensaje.setClaveEnvio(claveEnvio);
         mensaje.setIdEmisor(idUsuario);
         mensaje.setIdReceptor(idConversacion);
         mensaje.setContenido(texto);

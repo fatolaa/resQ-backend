@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "mensaje")
+@Table(name = "mensaje", uniqueConstraints = @UniqueConstraint(name = "uk_mensaje_envio", columnNames = {"id_emisor", "clave_envio"}))
 public class Mensaje {
 
     public static final String TEXTO = "TEXTO";
@@ -12,6 +12,10 @@ public class Mensaje {
     public static final String ARCHIVO = "ARCHIVO";
 
     public static final int CONTENIDO_MAX = 2000;
+    @Column(name = "clave_envio", length = 36)
+    private String claveEnvio;
+    public String getClaveEnvio() { return claveEnvio; }
+    public void setClaveEnvio(String claveEnvio) { this.claveEnvio = claveEnvio; }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
