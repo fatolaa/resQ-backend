@@ -62,19 +62,45 @@ public class ConversacionService {
     }
 
     @Transactional(readOnly = true)
-    public List<ConversacionResumenDTO> obtenerConversaciones(Long idUsuario) {        Map<Long, Mensaje> ultimos = new LinkedHashMap<>();
+    public List<ConversacionResumenDTO> obtenerConversaciones(Long idUsuario) {
+        return obtenerConversaciones(idUsuario, null, null);
+    }
+
+    /**
+     * TT-50: bandeja con busqueda y archivado.
+     *
+     * @param busqueda   filtra por nombre del otro participante o por el texto
+     *                   de cualquier mensaje de la conversacion (case-insensitive).
+     * @param archivadas null = todas, true = solo archivadas, false = solo activas.
+     */
+    @Transactional(readOnly = true)
+    public List<ConversacionResumenDTO> obtenerConversaciones(Long idUsuario, String busqueda, Boolean archivadas) {
+        Map<Long, List<Mensaje>> porOtro = new LinkedHashMap<>();
         for (Mensaje mensaje : mensajeRepository.findTodosDeUsuario(idUsuario)) {
             Long idOtro = mensaje.getIdEmisor().equals(idUsuario)
                     ? mensaje.getIdReceptor()
                     : mensaje.getIdEmisor();
-            ultimos.putIfAbsent(idOtro, mensaje);
+            porOtro.computeIfAbsent(idOtro, clave -> new ArrayList<>()).add(mensaje);
         }
 
+        String filtro = busqueda == null ? "" : busqueda.trim().toLowerCase();
         List<ConversacionResumenDTO> resultado = new ArrayList<>();
-        for (Map.Entry<Long, Mensaje> entrada : ultimos.entrySet()) {
-            Optional<ConversacionResumenDTO> resumen = resumen(idUsuario, entrada.getKey(), entrada.getValue());
-            resumen.ifPresent(resultado::add);
+        for (Map.Entry<Long, List<Mensaje>> entrada : porOtro.entrySet()) {
+            Mensaje ultimo = entrada.getValue().get(0);
+            Optional<ConversacionResumenDTO> resumen = resumen(idUsuario, entrada.getKey(), ultimo);
+            if (resumen.isEmpty()) {
+                continue;
+            }
+            ConversacionResumenDTO conversacion = resumen.get();
+            if (archivadas != null && conversacion.archivada() != archivadas) {
+                continue;
+            }
+            if (!filtro.isEmpty() && !coincide(conversacion.nombre(), entrada.getValue(), filtro)) {
+                continue;
+            }
+            resultado.add(conversacion);
         }
+
         resultado.sort((a, b) -> {
             if (a.fechaUltimoMensaje() == null) {
                 return 1;
@@ -85,6 +111,47 @@ public class ConversacionService {
             return b.fechaUltimoMensaje().compareTo(a.fechaUltimoMensaje());
         });
         return resultado;
+    }
+
+    /**
+     * TT-50: archiva o desarchiva una conversacion propia.
+     * Solo se puede archivar el lado del usuario autenticado y la conversacion
+     * tiene que existir, de lo contrario responde 404.
+     */
+    @Transactional
+    public void archivarConversacion(Long idUsuario, Long idOtroUsuario, boolean archivar) {
+        if (idOtroUsuario == null || idOtroUsuario <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La conversacion no es valida");
+        }
+        if (Objects.equals(idUsuario, idOtroUsuario)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No puedes archivar tu propia conversacion");
+        }
+        if (!usuarioRepository.existsById(idOtroUsuario)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "El usuario no existe");
+        }
+        List<Mensaje> mensajes = mensajeRepository.findConversacion(idUsuario, idOtroUsuario);
+        if (mensajes.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "La conversacion no existe");
+        }
+        for (Mensaje mensaje : mensajes) {
+            if (mensaje.getIdEmisor().equals(idUsuario)) {
+                mensaje.setArchivadoEmisor(archivar);
+            } else {
+                mensaje.setArchivadoReceptor(archivar);
+            }
+        }
+        mensajeRepository.saveAll(mensajes);
+    }
+
+    private static boolean coincide(String nombre, List<Mensaje> mensajes, String filtro) {
+        if (nombre != null && nombre.toLowerCase().contains(filtro)) {
+            return true;
+        }
+        return mensajes.stream()
+                .filter(mensaje -> !mensaje.isEliminado())
+                .map(Mensaje::getContenido)
+                .filter(Objects::nonNull)
+                .anyMatch(contenido -> contenido.toLowerCase().contains(filtro));
     }
 
     /**
@@ -148,7 +215,8 @@ public class ConversacionService {
                 nombre,
                 organizacion.isPresent(),
                 ultimo == null ? "" : vistaPrevia(ultimo),
-                ultimo == null ? null : ultimo.getFechaEnvio());
+                ultimo == null ? null : ultimo.getFechaEnvio(),
+                ultimo != null && archivadaPara(ultimo, idUsuario));
     }
 
     @Transactional(readOnly = true)
@@ -240,7 +308,14 @@ public class ConversacionService {
                 nombre,
                 organizacion.isPresent(),
                 vistaPrevia(ultimo),
-                ultimo.getFechaEnvio()));
+                ultimo.getFechaEnvio(),
+                archivadaPara(ultimo, idUsuario)));
+    }
+
+    private static boolean archivadaPara(Mensaje ultimo, Long idUsuario) {
+        return ultimo.getIdEmisor().equals(idUsuario)
+                ? ultimo.isArchivadoEmisor()
+                : ultimo.isArchivadoReceptor();
     }
 
     private void publicarNuevo(Mensaje mensaje) {
