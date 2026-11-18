@@ -2,12 +2,14 @@ package com.resq.backend.entity;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.resq.backend.validation.CoordenadasCoherentes;
+import com.resq.backend.validation.Telefonos;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 
@@ -77,6 +79,51 @@ public class Reporte {
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     @Column(name = "id_organizacion")
     private Long idOrganizacion;
+
+    // ---- Rediseño: datos opcionales del animal y del lugar ----
+
+    /** Referencia del lugar en texto ("frente a la farmacia"), ademas del pin del mapa. */
+    @Size(max = 200, message = "La referencia no puede superar los 200 caracteres")
+    @Column(name = "referencia", length = 200)
+    private String referencia;
+
+    @Pattern(regexp = "PERRO|GATO|OTRO", message = "Especie inválida")
+    @Column(name = "especie", length = 20)
+    private String especie;
+
+    @Pattern(regexp = "CACHORRO|ADULTO|MAYOR", message = "Edad inválida")
+    @Column(name = "edad", length = 20)
+    private String edad;
+
+    @Pattern(regexp = "PEQUENO|MEDIANO|GRANDE", message = "Tamaño inválido")
+    @Column(name = "tamano", length = 20)
+    private String tamano;
+
+    /**
+     * Rediseño: necesidades elegidas al crear el reporte (TRANSPORTE, VETERINARIO...).
+     * Solo se reciben; se guardan como NecesidadCaso y se consultan en
+     * GET /api/reportes/{id}/necesidades.
+     */
+    @Transient
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private java.util.List<String> necesidades;
+
+    // ---- Contacto de quien reporta (opcional, elegido en cada reporte) ----
+    // Nunca sale en el JSON publico del reporte (GET /api/reportes es publico):
+    // se consulta con sesion en GET /api/reportes/{id}/contacto. Los reportes
+    // anteriores quedan con ambos en null, es decir, sin contacto.
+
+    /** Si quien reporta acepta mostrar el telefono de su cuenta (se lee de la cuenta, no se copia). */
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @Column(name = "compartir_telefono_cuenta")
+    private Boolean compartirTelefonoCuenta;
+
+    /** Otro telefono solo para este caso; se puede usar junto con el de la cuenta. */
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    @Pattern(regexp = Telefonos.PATRON_ENTRADA,
+            message = "El teléfono debe tener entre 7 y 15 dígitos")
+    @Column(name = "telefono_contacto", length = 20)
+    private String telefonoContacto;
 
     public Reporte() {
     }
@@ -203,5 +250,74 @@ public class Reporte {
     // HU-21
     public void setIdOrganizacion(Long idOrganizacion) {
         this.idOrganizacion = idOrganizacion;
+    }
+
+    public Boolean getCompartirTelefonoCuenta() {
+        return compartirTelefonoCuenta;
+    }
+
+    public void setCompartirTelefonoCuenta(Boolean compartirTelefonoCuenta) {
+        this.compartirTelefonoCuenta = compartirTelefonoCuenta;
+    }
+
+    public String getTelefonoContacto() {
+        return telefonoContacto;
+    }
+
+    public void setTelefonoContacto(String telefonoContacto) {
+        this.telefonoContacto = telefonoContacto;
+    }
+
+    /**
+     * Lo unico del contacto que es publico: si el caso tiene un telefono para
+     * mostrar. Asi el detalle puede decir "inicia sesion para ver el contacto".
+     */
+    @Transient
+    @JsonProperty(value = "tieneContacto", access = JsonProperty.Access.READ_ONLY)
+    public boolean tieneContacto() {
+        boolean abierto = "PENDIENTE".equals(estado) || "EN_PROCESO".equals(estado);
+        boolean hayTelefono = Boolean.TRUE.equals(compartirTelefonoCuenta)
+                || (telefonoContacto != null && !telefonoContacto.isBlank());
+        return abierto && hayTelefono;
+    }
+
+    public String getReferencia() {
+        return referencia;
+    }
+
+    public void setReferencia(String referencia) {
+        this.referencia = referencia;
+    }
+
+    public String getEspecie() {
+        return especie;
+    }
+
+    public void setEspecie(String especie) {
+        this.especie = especie;
+    }
+
+    public String getEdad() {
+        return edad;
+    }
+
+    public void setEdad(String edad) {
+        this.edad = edad;
+    }
+
+    public String getTamano() {
+        return tamano;
+    }
+
+    public void setTamano(String tamano) {
+        this.tamano = tamano;
+    }
+
+    public java.util.List<String> getNecesidades() {
+        return necesidades;
+    }
+
+    public void setNecesidades(java.util.List<String> necesidades) {
+        this.necesidades = necesidades;
     }
 }
