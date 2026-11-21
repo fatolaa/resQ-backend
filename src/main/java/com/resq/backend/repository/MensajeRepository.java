@@ -10,6 +10,8 @@ import java.util.List;
 
 @Repository
 public interface MensajeRepository extends JpaRepository<Mensaje, Long> {
+    java.util.Optional<Mensaje> findByIdEmisorAndClaveEnvio(Long idEmisor, String claveEnvio);
+
     boolean existsByUrlAdjuntoAndEliminadoFalseAndIdEmisor(String urlAdjunto, Long idEmisor);
     boolean existsByUrlAdjuntoAndEliminadoFalseAndIdReceptor(String urlAdjunto, Long idReceptor);
 
