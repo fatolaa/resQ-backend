@@ -67,13 +67,14 @@ public class ConversacionController {
     @PostMapping(value = "/{idConversacion}/mensajes", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> enviar(@PathVariable Long idConversacion,
                                     @RequestParam(value = "contenido", required = false) String contenido,
-                                    @RequestParam(value = "archivo", required = false) MultipartFile archivo) {
+                                    @RequestParam(value = "archivo", required = false) MultipartFile archivo,
+                                    @RequestParam(value = "claveEnvio", required = false) String claveEnvio) {
         Optional<Long> idUsuario = UsuarioAutenticado.idActual();
         if (idUsuario.isEmpty()) {
             return sinSesion();
         }
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(conversacionService.enviarMensaje(idUsuario.get(), idConversacion, contenido, archivo));
+                .body(conversacionService.enviarMensaje(idUsuario.get(), idConversacion, contenido, archivo, claveEnvio));
     }
 
     @GetMapping("/adjuntos/{nombre}")
