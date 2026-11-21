@@ -25,4 +25,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
     // HU-34: voluntarios actuales, para clasificarlos por tipo de ayuda.
     List<Usuario> findByRolIgnoreCase(String rol);
+
+    // TT-49: directorio para iniciar conversaciones, sin el propio usuario.
+    List<Usuario> findTop20ByNombreContainingIgnoreCaseAndIdUsuarioNotOrderByNombreAsc(
+            String nombre, Long idUsuario);
 }

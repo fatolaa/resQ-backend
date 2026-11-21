@@ -117,7 +117,13 @@ public class OrganizacionController {
     @GetMapping
     public ResponseEntity<List<Organizacion>> consultarDirectorio(
             @RequestParam(name = "tipo", required = false) String tipo,
-            @RequestParam(name = "zona", required = false) String zona) {
+            @RequestParam(name = "zona", required = false) String zona,
+            @RequestParam(name = "nombre", required = false) String nombre) {
+        return ResponseEntity.ok(organizacionService.consultarDirectorio(tipo, zona, nombre));
+    }
+
+    /** Sobrecarga sin nombre para no romper llamadas internas y pruebas existentes. */
+    public ResponseEntity<List<Organizacion>> consultarDirectorio(String tipo, String zona) {
         return ResponseEntity.ok(organizacionService.consultarDirectorio(tipo, zona));
     }
 
