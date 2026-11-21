@@ -6,6 +6,8 @@ import com.resq.backend.security.UsuarioAutenticado;
 import com.resq.backend.service.AdjuntoMensajeStorageService;
 import com.resq.backend.service.AdjuntoMensajeStorageService.AdjuntoCargado;
 import com.resq.backend.service.ConversacionService;
+import com.resq.backend.repository.MensajeRepository;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.core.io.Resource;
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
@@ -22,7 +24,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 @RestController
 @RequestMapping("/api/conversaciones")
@@ -30,11 +31,13 @@ public class ConversacionController {
 
     private final ConversacionService conversacionService;
     private final AdjuntoMensajeStorageService adjuntoStorage;
+    private final MensajeRepository mensajes;
 
     public ConversacionController(ConversacionService conversacionService,
-                                  AdjuntoMensajeStorageService adjuntoStorage) {
+                                  AdjuntoMensajeStorageService adjuntoStorage, MensajeRepository mensajes) {
         this.conversacionService = conversacionService;
         this.adjuntoStorage = adjuntoStorage;
+        this.mensajes = mensajes;
     }
 
     @GetMapping
@@ -76,23 +79,31 @@ public class ConversacionController {
     @PostMapping(value = "/{idConversacion}/mensajes", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> enviar(@PathVariable Long idConversacion,
                                     @RequestParam(value = "contenido", required = false) String contenido,
-                                    @RequestParam(value = "archivo", required = false) MultipartFile archivo) {
+                                    @RequestParam(value = "archivo", required = false) MultipartFile archivo,
+                                    @RequestParam(value = "claveEnvio", required = false) String claveEnvio) {
         Optional<Long> idUsuario = UsuarioAutenticado.idActual();
         if (idUsuario.isEmpty()) {
             return sinSesion();
         }
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(conversacionService.enviarMensaje(idUsuario.get(), idConversacion, contenido, archivo));
+                .body(conversacionService.enviarMensaje(idUsuario.get(), idConversacion, contenido, archivo, claveEnvio));
     }
 
     @GetMapping("/adjuntos/{nombre}")
     public ResponseEntity<Resource> adjunto(@PathVariable String nombre) {
+        Long usuario = UsuarioAutenticado.idActual().orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.UNAUTHORIZED));
+        String url = "/api/conversaciones/adjuntos/" + nombre;
+        if (!mensajes.existsByUrlAdjuntoAndEliminadoFalseAndIdEmisor(url, usuario)
+                && !mensajes.existsByUrlAdjuntoAndEliminadoFalseAndIdReceptor(url, usuario)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Adjunto no disponible");
+        }
         return adjuntoStorage.cargar(nombre)
                 .map((AdjuntoCargado adjunto) -> {
                     ResponseEntity.BodyBuilder respuesta = ResponseEntity.ok()
                             .contentType(MediaType.parseMediaType(adjunto.contentType()))
                             .header("X-Content-Type-Options", "nosniff")
-                            .cacheControl(CacheControl.maxAge(7, TimeUnit.DAYS).cachePrivate());
+                            .cacheControl(CacheControl.noStore());
                     if (!adjunto.imagen()) {
                         respuesta.header(HttpHeaders.CONTENT_DISPOSITION, "attachment");
                     }

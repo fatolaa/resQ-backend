@@ -15,6 +15,8 @@ public class Notificacion {
     public static final String SISTEMA = "SISTEMA";
     // HU-22: mensaje nuevo en el chat de un caso para un participante que no estaba en linea.
     public static final String MENSAJE_CASO = "MENSAJE_CASO";
+    // Rediseño: alguien se ofrecio para cubrir una necesidad de un caso.
+    public static final String NECESIDAD_OFRECIDA = "NECESIDAD_OFRECIDA";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
