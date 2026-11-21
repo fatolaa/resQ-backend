@@ -94,6 +94,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/reportes/disponibles").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/reportes/organizacion/**").authenticated()
 
+                        // Contacto de quien reporta: nunca publico, solo con sesion. Tiene que ir
+                        // ANTES del permitAll de abajo, por la misma razon que las reglas de arriba.
+                        .requestMatchers(HttpMethod.GET, "/api/reportes/*/contacto").authenticated()
+
                         // El mapa del landing muestra casos a quien no ha iniciado sesion.
                         .requestMatchers(HttpMethod.GET, "/api/reportes/**").permitAll()
 
@@ -111,6 +115,10 @@ public class SecurityConfig {
                         // admin-only: si no, un usuario comun no podria guardar sus preferencias.
                         .requestMatchers("/api/usuarios/me/preferencias-notificacion").authenticated()
 
+                        // Cada usuario corrige su propio nombre y telefono (contacto de sus
+                        // reportes). Misma razon: antes de la regla PATCH admin-only de abajo.
+                        .requestMatchers(HttpMethod.PATCH, "/api/usuarios/me").authenticated()
+
                         // HU-23: gestionar cuentas es exclusivo del administrador.
                         .requestMatchers(HttpMethod.GET, "/api/usuarios").hasRole(ROL_ADMIN)
                         .requestMatchers(HttpMethod.PUT, "/api/usuarios/**").hasRole(ROL_ADMIN)
@@ -119,6 +127,12 @@ public class SecurityConfig {
 
                         // Ver un usuario concreto: lo puede pedir su propietario o el administrador.
                         .requestMatchers(HttpMethod.GET, "/api/usuarios/**").authenticated()
+
+                        // Rediseño: nombre, tipo y logo de las organizaciones verificadas se
+                        // muestran sin sesion (Inicio y detalle del caso). Tiene que ir ANTES de
+                        // la regla de abajo, que exige sesion para todo /api/organizaciones/**.
+                        .requestMatchers(HttpMethod.GET, "/api/organizaciones/publicas", "/api/organizaciones/publicas/*")
+                        .permitAll()
 
                         // HU-29: el directorio de organizaciones lo consultan usuarios y
                         // voluntarios con sesión iniciada; solo expone verificadas.
@@ -141,9 +155,8 @@ public class SecurityConfig {
                         // requiere que el usuario este autenticado.
                         .requestMatchers("/api/chat/**").authenticated()
 
-                        // HU-27: los adjuntos se muestran con <img>/<a>, que no pasan por el
-                        // interceptor de Angular y por eso nunca envian el token.
-                        .requestMatchers(HttpMethod.GET, "/api/conversaciones/adjuntos/**").permitAll()
+                        // TT-54: los adjuntos privados se descargan por HTTP autenticado.
+                        .requestMatchers(HttpMethod.GET, "/api/conversaciones/adjuntos/**").authenticated()
 
                         // HU-27: conversaciones y mensajes entre usuarios exigen sesion.
                         .requestMatchers("/api/conversaciones/**", "/api/mensajes/**").authenticated()

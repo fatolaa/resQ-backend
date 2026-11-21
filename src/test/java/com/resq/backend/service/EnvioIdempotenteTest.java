@@ -12,7 +12,9 @@ class EnvioIdempotenteTest {
     @Test void reintentoDevuelveMensajeSinGuardarNiPublicarOtraVez() {
         var mensajes=mock(MensajeRepository.class); var usuarios=mock(UsuarioRepository.class);
         var archivos=mock(AdjuntoMensajeStorageService.class); var eventos=mock(EventoWebSocketService.class);
-        var service=new ConversacionService(mensajes,usuarios,mock(OrganizacionRepository.class),archivos,eventos);
+        var bloqueos = mock(BloqueoService.class);
+        var service = new ConversacionService(
+                mensajes, usuarios, mock(OrganizacionRepository.class), archivos, eventos, bloqueos);
         String clave="12345678-1234-1234-1234-123456789abc";
         Mensaje m=new Mensaje(); m.setIdMensaje(4L); m.setIdEmisor(1L); m.setIdReceptor(2L);
         when(usuarios.existsById(anyLong())).thenReturn(true);

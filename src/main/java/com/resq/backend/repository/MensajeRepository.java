@@ -12,6 +12,9 @@ import java.util.List;
 public interface MensajeRepository extends JpaRepository<Mensaje, Long> {
     java.util.Optional<Mensaje> findByIdEmisorAndClaveEnvio(Long idEmisor, String claveEnvio);
 
+    boolean existsByUrlAdjuntoAndEliminadoFalseAndIdEmisor(String urlAdjunto, Long idEmisor);
+    boolean existsByUrlAdjuntoAndEliminadoFalseAndIdReceptor(String urlAdjunto, Long idReceptor);
+
     // Trae todos los mensajes entre dos usuarios ordenados por fecha
     @Query("SELECT m FROM Mensaje m WHERE (m.idEmisor = :u1 AND m.idReceptor = :u2) OR (m.idEmisor = :u2 AND m.idReceptor = :u1) ORDER BY m.fechaEnvio ASC")
     List<Mensaje> findConversacion(@Param("u1") Long u1, @Param("u2") Long u2);
