@@ -12,9 +12,8 @@ import com.resq.backend.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
@@ -27,17 +26,20 @@ public class SolicitudVoluntarioService {
     private static final Logger logger = LoggerFactory.getLogger(SolicitudVoluntarioService.class);
     private static final int DIAS_BLOQUEO_RECHAZO = 30;
 
-    @Autowired
-    private SolicitudVoluntarioRepository solicitudRepository;
+    private final SolicitudVoluntarioRepository solicitudRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final NotificacionService notificacionService;
+    private final EmailService emailService;
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
-
-    @Autowired
-    private NotificacionService notificacionService;
-
-    @Autowired
-    private EmailService emailService;
+    public SolicitudVoluntarioService(SolicitudVoluntarioRepository solicitudRepository,
+                                      UsuarioRepository usuarioRepository,
+                                      NotificacionService notificacionService,
+                                      EmailService emailService) {
+        this.solicitudRepository = solicitudRepository;
+        this.usuarioRepository = usuarioRepository;
+        this.notificacionService = notificacionService;
+        this.emailService = emailService;
+    }
 
     public List<SolicitudVoluntarioResumenDTO> listarPendientes() {
         logger.info("Listando solicitudes de voluntario pendientes");
@@ -152,7 +154,7 @@ public class SolicitudVoluntarioService {
             String tipo;
             if (solicitud.getEstado() == EstadoSolicitudVoluntario.APROBADA) {
                 asunto = "Tu solicitud para ser voluntario fue aprobada";
-                mensaje = "??Felicitaciones! Tu solicitud para ser voluntario en ResQ ha sido aprobada. Ya tienes el rol VOLUNTARIO.";
+                mensaje = "Felicitaciones! Tu solicitud para ser voluntario en ResQ ha sido aprobada. Ya tienes el rol VOLUNTARIO.";
                 tipo = Notificacion.SOLICITUD_APROBADA;
             } else {
                 asunto = "Tu solicitud para ser voluntario fue rechazada";
@@ -166,9 +168,9 @@ public class SolicitudVoluntarioService {
             emailService.enviar(solicitud.getUsuario().getEmail(), asunto, mensaje);
             solicitud.setNotificada(true);
             solicitudRepository.save(solicitud);
-            logger.info("Notificaci??n enviada para solicitud ID: {}", solicitud.getIdSolicitud());
+            logger.info("Notificacion enviada para solicitud ID: {}", solicitud.getIdSolicitud());
         } catch (Exception e) {
-            logger.error("Error al notificar resoluci??n de solicitud ID: {}", solicitud.getIdSolicitud(), e);
+            logger.error("Error al notificar resolucion de solicitud ID: {}", solicitud.getIdSolicitud(), e);
             solicitud.setNotificada(false);
             solicitudRepository.save(solicitud);
         }
