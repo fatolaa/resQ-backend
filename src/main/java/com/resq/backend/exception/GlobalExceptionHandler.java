@@ -103,4 +103,26 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ApiError(HttpStatus.CONFLICT.value(), mensaje, null));
     }
+        // 1. Manejo del error 403 (Prohibido)
+    @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(org.springframework.security.access.AccessDeniedException ex) {
+        logger.warn("Acceso denegado: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ApiError(HttpStatus.FORBIDDEN.value(), 
+                        "No tienes permisos suficientes para realizar esta acción", 
+                        Map.of()));
+    }
+
+    // 2. Manejo del error 500 (Error Interno del Servidor) - ¡Atrapa-Todo!
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiError> handleGenericException(Exception ex) {
+        // Logueamos el error completo para los desarrolladores (no para el usuario)
+        logger.error("Error inesperado en el servidor: ", ex);
+        
+        // Devolvemos un mensaje genérico al usuario para no filtrar datos sensibles
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(new ApiError(HttpStatus.INTERNAL_SERVER_ERROR.value(), 
+                        "Ocurrió un error inesperado en el servidor. Inténtalo más tarde.", 
+                        Map.of()));
+    }
 }
