@@ -36,7 +36,9 @@ public class RestAuthenticationEntryPoint implements AuthenticationEntryPoint {
     public void commence(HttpServletRequest peticion,
                          HttpServletResponse respuesta,
                          AuthenticationException excepcion) throws IOException {
-        logger.warn("Acceso no autenticado a {}: {}", peticion.getRequestURI(), excepcion.getMessage());
+        boolean authorizationPresent = peticion.getHeader("Authorization") != null;
+        logger.warn("Acceso no autenticado a {} {} (Authorization presente={}): {}",
+                peticion.getMethod(), peticion.getRequestURI(), authorizationPresent, excepcion.getMessage());
         respuesta.setStatus(HttpStatus.UNAUTHORIZED.value());
         respuesta.setContentType(MediaType.APPLICATION_JSON_VALUE);
         respuesta.setCharacterEncoding("UTF-8");

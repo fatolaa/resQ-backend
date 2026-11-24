@@ -306,15 +306,7 @@ public class ConversacionService {
         mensaje.setUrlAdjunto(null);
         mensaje.setNombreAdjunto(null);
         mensajeRepository.save(mensaje);
-
-        MensajeEliminadoEventoDTO datos = new MensajeEliminadoEventoDTO(
-                mensaje.getIdEmisor(), mensaje.getIdMensaje());
-        try {
-            eventos.aUsuario(mensaje.getIdReceptor(),
-                    EventoWebSocket.de(TipoEventoWebSocket.MENSAJE_ELIMINADO, datos));
-        } catch (RuntimeException e) {
-            logger.error("No se pudo difundir la eliminacion del mensaje ID {}", mensaje.getIdMensaje(), e);
-        }
+        publicarEliminado(mensaje);
     }
 
     private Optional<ConversacionResumenDTO> resumen(Long idUsuario, Long idOtro, Mensaje ultimo) {
@@ -341,8 +333,14 @@ public class ConversacionService {
     }
 
     private void publicarNuevo(Mensaje mensaje) {
+        // Cada participante identifica su conversación por el ID del otro usuario.
+        publicarNuevoA(mensaje, mensaje.getIdReceptor(), mensaje.getIdEmisor());
+        publicarNuevoA(mensaje, mensaje.getIdEmisor(), mensaje.getIdReceptor());
+    }
+
+    private void publicarNuevoA(Mensaje mensaje, Long destinatario, Long idConversacion) {
         MensajeNuevoEventoDTO datos = new MensajeNuevoEventoDTO(
-                mensaje.getIdEmisor(),
+                idConversacion,
                 mensaje.getIdMensaje(),
                 mensaje.getIdEmisor(),
                 mensaje.getTipo(),
@@ -351,10 +349,23 @@ public class ConversacionService {
                 mensaje.getNombreAdjunto(),
                 mensaje.getFechaEnvio());
         try {
-            eventos.aUsuario(mensaje.getIdReceptor(),
-                    EventoWebSocket.de(TipoEventoWebSocket.MENSAJE_NUEVO, datos));
+            eventos.aUsuario(destinatario, EventoWebSocket.de(TipoEventoWebSocket.MENSAJE_NUEVO, datos));
         } catch (RuntimeException e) {
-            logger.error("No se pudo difundir el mensaje ID {}", mensaje.getIdMensaje(), e);
+            logger.error("No se pudo difundir el mensaje ID {} al usuario ID {}", mensaje.getIdMensaje(), destinatario, e);
+        }
+    }
+
+    private void publicarEliminado(Mensaje mensaje) {
+        publicarEliminadoA(mensaje.getIdReceptor(), mensaje.getIdEmisor(), mensaje.getIdMensaje());
+        publicarEliminadoA(mensaje.getIdEmisor(), mensaje.getIdReceptor(), mensaje.getIdMensaje());
+    }
+
+    private void publicarEliminadoA(Long destinatario, Long idConversacion, Long idMensaje) {
+        MensajeEliminadoEventoDTO datos = new MensajeEliminadoEventoDTO(idConversacion, idMensaje);
+        try {
+            eventos.aUsuario(destinatario, EventoWebSocket.de(TipoEventoWebSocket.MENSAJE_ELIMINADO, datos));
+        } catch (RuntimeException e) {
+            logger.error("No se pudo difundir la eliminacion del mensaje ID {} al usuario ID {}", idMensaje, destinatario, e);
         }
     }
 
