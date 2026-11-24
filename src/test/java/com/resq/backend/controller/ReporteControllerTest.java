@@ -4,6 +4,8 @@ import com.resq.backend.entity.Reporte;
 import com.resq.backend.repository.OrganizacionRepository;
 import com.resq.backend.repository.ReporteRepository;
 import com.resq.backend.repository.SeguimientoCasoRepository;
+import com.resq.backend.security.TestSecurityContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -31,10 +33,16 @@ class ReporteControllerTest {
 
     @BeforeEach
     void setUp() {
+        TestSecurityContext.authenticateAs(10L, "USUARIO");
         reporteRepository = mock(ReporteRepository.class);
         organizacionRepository = mock(OrganizacionRepository.class);
         seguimientoCasoRepository = mock(SeguimientoCasoRepository.class);
         controller = new ReporteController(reporteRepository, organizacionRepository, seguimientoCasoRepository);
+    }
+
+    @AfterEach
+    void limpiarSesion() {
+        TestSecurityContext.clear();
     }
 
     private static Reporte reporteCon(Double latitud, Double longitud) {

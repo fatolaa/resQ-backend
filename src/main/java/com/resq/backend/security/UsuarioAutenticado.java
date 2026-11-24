@@ -35,12 +35,21 @@ public final class UsuarioAutenticado {
     }
 
     public static boolean esAdmin() {
+        return tieneRol("ROLE_ADMIN");
+    }
+
+    public static boolean esVoluntario() {
+        return tieneRol("ROLE_VOLUNTARIO");
+    }
+
+    private static boolean tieneRol(String rol) {
         Authentication autenticacion = SecurityContextHolder.getContext().getAuthentication();
-        if (autenticacion == null) {
+        if (autenticacion == null || !autenticacion.isAuthenticated()
+                || autenticacion instanceof AnonymousAuthenticationToken) {
             return false;
         }
         for (GrantedAuthority autoridad : autenticacion.getAuthorities()) {
-            if ("ROLE_ADMIN".equals(autoridad.getAuthority())) {
+            if (rol.equals(autoridad.getAuthority())) {
                 return true;
             }
         }

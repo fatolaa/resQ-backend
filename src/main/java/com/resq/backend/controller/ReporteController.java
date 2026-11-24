@@ -22,6 +22,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Arrays;
 import java.util.List;
@@ -233,8 +234,19 @@ public class ReporteController {
 
     @PostMapping
     public ResponseEntity<Reporte> crearReporte(@Valid @RequestBody Reporte reporte) {
+        Long idUsuario = UsuarioAutenticado.idActual().orElseThrow(() ->
+                new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Debes iniciar sesion para crear un reporte"));
+        reporte.setIdReporte(null);
+        reporte.setIdUsuario(idUsuario);
+        reporte.setEstado("PENDIENTE");
+        reporte.setFechaCreacion(null);
+        reporte.setEstadoRevision(EstadoRevision.PENDIENTE);
+        reporte.setNotaRevision(null);
+        reporte.setIdRevisor(null);
+        reporte.setFechaRevision(null);
+        reporte.setIdOrganizacion(null);
         logger.info("Iniciando creación de reporte. Usuario ID: {}, tipo: {}",
-                reporte.getIdUsuario(), reporte.getTipoCaso());
+                idUsuario, reporte.getTipoCaso());
         reporte.setReferencia(limpiar(reporte.getReferencia()));
         // Contacto opcional de quien reporta: se valida (y se limpia el telefono) antes de guardar.
         if (contactoReporteService != null) {
@@ -313,16 +325,16 @@ public class ReporteController {
             return ResponseEntity.notFound().build();
         }
 
-        // HU-21: si el caso ya fue tomado por una organización, solo esa organización
-        // (o un admin) puede cambiarle el estado. No afecta a admin ni a voluntarios
-        // en casos sin organización asignada.
-        if (reporte.getIdOrganizacion() != null
-                && !UsuarioAutenticado.esAdmin()
-                && !puedeVerOrganizacion(reporte.getIdOrganizacion())) {
+        // HU-13/HU-21: voluntarios y administradores gestionan estados; una organización
+        // solo puede hacerlo para los casos que tiene asignados.
+        boolean puedeGestionar = UsuarioAutenticado.esAdmin()
+                || UsuarioAutenticado.esVoluntario()
+                || (reporte.getIdOrganizacion() != null && puedeVerOrganizacion(reporte.getIdOrganizacion()));
+        if (!puedeGestionar) {
             logger.warn("Usuario sin permiso intentó cambiar estado del caso ID: {}", id);
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new ApiError(HttpStatus.FORBIDDEN.value(),
-                            "Solo la organización asignada puede editar este caso",
+                            "Solo voluntarios, administradores o la organización asignada pueden cambiar el estado",
                             Map.of("idReporte", String.valueOf(id))));
         }
 

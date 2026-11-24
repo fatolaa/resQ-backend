@@ -33,7 +33,10 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -71,6 +74,14 @@ class ContactoReporteControllerTest {
         ana.setRol("USUARIO");
         when(jwtService.extraerIdUsuarioSiEsValido(TOKEN)).thenReturn(9L);
         when(usuarioRepository.findById(9L)).thenReturn(Optional.of(ana));
+
+        Usuario voluntario = new Usuario();
+        voluntario.setIdUsuario(10L);
+        voluntario.setNombre("Voluntario");
+        voluntario.setEmail("voluntario@resq.com");
+        voluntario.setRol("VOLUNTARIO");
+        when(jwtService.extraerIdUsuarioSiEsValido("token-voluntario")).thenReturn(10L);
+        when(usuarioRepository.findById(10L)).thenReturn(Optional.of(voluntario));
     }
 
     private static Reporte reporteConContacto() {
@@ -144,6 +155,64 @@ class ContactoReporteControllerTest {
         verify(contactoReporteService).prepararParaGuardar(captor.capture());
         assertThat(captor.getValue().getCompartirTelefonoCuenta()).isTrue();
         assertThat(captor.getValue().getTelefonoContacto()).isEqualTo("600 111 22");
+    }
+
+    @Test
+    @DisplayName("al crear ignora el propietario y el estado enviados por el cliente")
+    void crearNoPermiteSuplantarPropietarioNiEstado() throws Exception {
+        when(reporteRepository.save(any(Reporte.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        mockMvc.perform(post("/api/reportes").header("Authorization", "Bearer " + TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"idUsuario": 2, "tipoCaso": "PERDIDA", "descripcion": "Perro perdido",
+                                 "estado": "RESUELTO"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.idUsuario").value(9))
+                .andExpect(jsonPath("$.estado").value("PENDIENTE"));
+    }
+
+    @Test
+    @DisplayName("un usuario normal no puede editar ni eliminar reportes completos")
+    void operacionesCompletasDeReporteSonSoloAdmin() throws Exception {
+        mockMvc.perform(put("/api/reportes/7").header("Authorization", "Bearer " + TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(delete("/api/reportes/7").header("Authorization", "Bearer " + TOKEN))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("un usuario normal no puede cambiar el estado de un reporte sin organizacion asignada")
+    void usuarioNormalNoPuedeCambiarEstadoDeReporteSinAsignacion() throws Exception {
+        when(reporteRepository.findById(7L)).thenReturn(Optional.of(reporteConContacto()));
+
+        mockMvc.perform(patch("/api/reportes/7/estado").header("Authorization", "Bearer " + TOKEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"estado\":\"EN_PROCESO\"}"))
+                .andExpect(status().isForbidden());
+
+        verify(reporteRepository, never()).save(any(Reporte.class));
+    }
+
+    @Test
+    @DisplayName("un voluntario puede cambiar el estado de un reporte")
+    void voluntarioPuedeCambiarEstado() throws Exception {
+        Reporte reporte = new Reporte();
+        reporte.setIdReporte(7L);
+        reporte.setIdUsuario(2L);
+        reporte.setEstado("PENDIENTE");
+        when(reporteRepository.findById(7L)).thenReturn(Optional.of(reporte));
+        when(reporteRepository.save(any(Reporte.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        mockMvc.perform(patch("/api/reportes/7/estado").header("Authorization", "Bearer token-voluntario")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"estado\":\"EN_PROCESO\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("EN_PROCESO"));
     }
 
     @Test

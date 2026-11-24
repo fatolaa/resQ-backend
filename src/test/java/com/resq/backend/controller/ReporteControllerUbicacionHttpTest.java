@@ -4,6 +4,9 @@ import com.resq.backend.entity.Reporte;
 import com.resq.backend.repository.OrganizacionRepository;
 import com.resq.backend.repository.ReporteRepository;
 import com.resq.backend.repository.SeguimientoCasoRepository;
+import com.resq.backend.security.TestSecurityContext;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,6 +26,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc(addFilters = false)
 @DisplayName("ReporteController API: ubicacion del reporte (HU-16)")
 class ReporteControllerUbicacionHttpTest {
+
+    @BeforeEach
+    void iniciarSesionParaPruebaSinFiltros() {
+        TestSecurityContext.authenticateAs(10L, "USUARIO");
+    }
+
+    @AfterEach
+    void limpiarSesion() {
+        TestSecurityContext.clear();
+    }
 
     @Autowired
     private MockMvc mockMvc;

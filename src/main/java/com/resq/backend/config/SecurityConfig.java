@@ -101,6 +101,12 @@ public class SecurityConfig {
                         // El mapa del landing muestra casos a quien no ha iniciado sesion.
                         .requestMatchers(HttpMethod.GET, "/api/reportes/**").permitAll()
 
+                        // Las modificaciones completas y eliminaciones de reportes son administrativas.
+                        // El cambio de estado se mantiene separado en PATCH /{id}/estado, con
+                        // autorización de voluntario/admin/organización en el controlador.
+                        .requestMatchers(HttpMethod.PUT, "/api/reportes/**").hasRole(ROL_ADMIN)
+                        .requestMatchers(HttpMethod.DELETE, "/api/reportes/**").hasRole(ROL_ADMIN)
+
                         // HU-19: las notificaciones son de un usuario concreto, nunca publicas.
                         .requestMatchers("/api/notificaciones/**").authenticated()
 

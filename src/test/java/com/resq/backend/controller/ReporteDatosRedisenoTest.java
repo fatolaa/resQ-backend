@@ -5,6 +5,8 @@ import com.resq.backend.repository.OrganizacionRepository;
 import com.resq.backend.repository.ReporteRepository;
 import com.resq.backend.repository.SeguimientoCasoRepository;
 import com.resq.backend.service.NecesidadCasoService;
+import com.resq.backend.security.TestSecurityContext;
+import org.junit.jupiter.api.AfterEach;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,10 +32,16 @@ class ReporteDatosRedisenoTest {
 
     @BeforeEach
     void setUp() {
+        TestSecurityContext.authenticateAs(2L, "USUARIO");
         reporteRepository = mock(ReporteRepository.class);
         necesidadService = mock(NecesidadCasoService.class);
         controller = new ReporteController(reporteRepository, mock(OrganizacionRepository.class),
                 mock(SeguimientoCasoRepository.class), null, necesidadService);
+    }
+
+    @AfterEach
+    void limpiarSesion() {
+        TestSecurityContext.clear();
     }
 
     private static Reporte reporte(long id, String estado) {
